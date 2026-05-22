@@ -12,7 +12,24 @@ let selectedDateFilter = null;
 let showOnlyDistributed = false;
 let returnedOrders = new Set();
 let returnedOrdersMap = {};
+const users = [
 
+    { username: "manager", password: "123456", warehouse: "P&C", role: "manager" },
+
+    { username: "pharmaUser", password: "123456", warehouse: "PHARMA", role: "user" },
+
+    { username: "retailUser", password: "123456", warehouse: "RETAIL", role: "user" },
+
+    { username: "pcUser", password: "123456", warehouse: "P&C", role: "user" },
+
+    { username: "lorealLuxUser", password: "123456", warehouse: "LOREAL LUX", role: "user" },
+
+    { username: "beeslineUser", password: "123456", warehouse: "BEESLINE", role: "user" },
+
+    // 🔵 Packing Station User
+    { username: "packingUser", password: "123456", warehouse: "Packing Station", role: "packing" }
+
+];
 let localOrders = [];
 function hashData(data) {
     return JSON.stringify(
@@ -167,7 +184,6 @@ async function loadCanceledOrders() {
 
 // LOGIN  
 loginForm.onsubmit = e => {
-
     e.preventDefault();
 
     const u = users.find(
@@ -176,116 +192,89 @@ loginForm.onsubmit = e => {
             x.password === password.value
     );
 
-    // ❌ login failed
     if (!u) {
-
         loginError.classList.remove("hidden");
         return;
     }
 
-    // ✅ Packing Station
-    if (u.warehouse === "Packing Station") {
+    loginError.classList.add("hidden");
 
+    if (u.warehouse === "Packing Station") {
         autoMoveToPacking();
     }
 
-    loginError.classList.add("hidden");
-
-    // ✅ save session
+    // =========================
+    // SAVE SESSION
+    // =========================
     localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("currentWarehouse", u.warehouse);
+    localStorage.setItem("userWarehouse", u.warehouse);
+    localStorage.setItem("userRole", u.role);
 
-    localStorage.setItem(
-        "currentWarehouse",
-        u.warehouse
-    );
-
-    localStorage.setItem(
-        "userWarehouse",
-        u.warehouse
-    );
-
-    localStorage.setItem(
-        "userRole",
-        u.role
-    );
-
-    // ✅ show dashboard
-    loginContainer.style.display = "none";
-
+    // =========================
+    // SWITCH UI
+    // =========================
+    loginContainer.classList.add("hidden");
     dashboard.classList.remove("hidden");
 
-    // =====================================
-    // ✅ MANAGER
-    // =====================================
+    // =========================
+    // ELEMENTS
+    // =========================
+    const teamNotesBtn = document.getElementById("teamNotesBtn");
+    const warehouseSwitcher = document.getElementById("warehouseSwitcher");
+    const kpis = document.querySelector(".kpis");
+    const warehouseContainer = document.querySelector(".warehouse-container");
+    const salesOrder = document.querySelector(".sales-order");
 
+    // =========================
+    // RESET UI FIRST (IMPORTANT)
+    // =========================
+    if (teamNotesBtn) teamNotesBtn.classList.add("hidden");
+    if (warehouseSwitcher) warehouseSwitcher.classList.add("hidden");
+    if (kpis) kpis.classList.add("hidden");
+    if (warehouseContainer) warehouseContainer.classList.add("hidden");
+    if (salesOrder) salesOrder.classList.add("hidden");
+
+    // =========================
+    // MANAGER
+    // =========================
     if (u.role === "manager") {
 
-        // show manager tools
-        document.getElementById(
-            "teamNotesBtn"
-        ).style.display = "block";
+        if (teamNotesBtn) teamNotesBtn.classList.remove("hidden");
+        if (warehouseSwitcher) warehouseSwitcher.classList.remove("hidden");
+        if (kpis) kpis.classList.remove("hidden");
+        if (warehouseContainer) warehouseContainer.classList.remove("hidden");
+        if (salesOrder) salesOrder.classList.remove("hidden");
 
-        document.getElementById(
-            "warehouseSwitcher"
-        ).style.display = "block";
-
-        // show dashboard sections
-        document.querySelector(".kpis")
-            .style.display = "grid";
-
-        document.querySelector(".warehouse-container")
-            .style.display = "grid";
-
-        document.querySelector(".sales-order")
-            .style.display = "grid";
-
-        // dashboard home
         showDashboardHome();
-
         listenToOrders();
 
         return;
     }
 
-    // =====================================
-    // ✅ NORMAL USERS
-    // =====================================
-
-    // hide manager tools
-    document.getElementById(
-        "warehouseSwitcher"
-    ).style.display = "none";
-
-    document.querySelector(".kpis")
-        .style.display = "none";
-
-    document.querySelector(".warehouse-container")
-        .style.display = "none";
-
-    document.querySelector(".sales-order")
-        .style.display = "none";
-
-    // open new orders only
+    // =========================
+    // NORMAL USER
+    // =========================
     showNewOrderTab();
 
-    // simplify sidebar
-    const aside =
-        document.querySelector("aside");
+    const aside = document.querySelector("aside");
 
-    aside.innerHTML = `
-        <button onclick="signOut()" style="
-            width:100%;
-            padding:12px;
-            background:#ef4444;
-            border:none;
-            border-radius:8px;
-            color:white;
-            font-weight:600;
-            cursor:pointer;
-        ">
-            Logout
-        </button>
-    `;
+    if (aside) {
+        aside.innerHTML = `
+            <button onclick="signOut()" style="
+                width:100%;
+                padding:12px;
+                background:#ef4444;
+                border:none;
+                border-radius:8px;
+                color:white;
+                font-weight:600;
+                cursor:pointer;
+            ">
+                Logout
+            </button>
+        `;
+    }
 };
 function getWarehouseBadgeColor(order, warehouse) {
 if (order.status === "returned") {
@@ -641,11 +630,12 @@ let lastType = null;
             });
             return `
         <table>
-            <tr>
-                <th>Order #</th>
-                <th>Warehouses</th>
-                <th>Status</th>
-            </tr>
+           <tr>
+    <th>Order #</th>
+    <th>Warehouses</th>
+    <th>Status</th>
+    <th>Comment</th>
+</tr>
             ${orders.map(order => {
 
                 let statusText =
@@ -707,6 +697,17 @@ order.status === "returned" ? "Returned" :
                 }).join("")}
                     </td>
                     <td>${statusText}</td>
+                    <td style="color:#38bdf8;font-size:12px">
+    ${order.comment ? `
+<div style="
+    margin-top:5px;
+    color:#22c55e;
+    font-size:11px;
+">
+💬 ${order.comment}
+</div>
+` : ""}
+</td>
                 </tr>
                 `;
             }).join("")}
@@ -794,9 +795,11 @@ order.status === "returned" ? "Returned" :
         let o = applyFilters();
 
         if (warehouse !== 'all') {
-            o = o.filter(order =>
-                order.warehouses.some(w => w.base === warehouse)
-            );
+o = o.filter(order =>
+    order.warehouses.some(w =>
+        normalizeWarehouse(w.base).base === normalizeWarehouse(warehouse).base
+    )
+);
         }
 
         if (type === "completed") o = o.filter(x => x.status === "completed");
@@ -1445,4 +1448,51 @@ function toggleWarehouseMenu(event) {
 
     menu.classList.toggle("hidden");
 }
+function showDashboardHome() {
 
+    document.getElementById("dashboardHeader").style.display = "flex";
+
+    document.getElementById("newOrderTab")
+        .classList.add("hidden");
+
+    document.getElementById("teamNotesTab")
+        .classList.add("hidden");
+
+    document.getElementById("readyTab")
+        .classList.add("hidden");
+
+    // 🔥 أضف هذا
+    document.getElementById("returnTab")
+        .classList.add("hidden");
+
+    document.getElementById("dsh").style.display = "block";
+
+    document.querySelector(".kpis")
+        .classList.remove("hidden");
+
+    document.querySelector(".warehouse-container")
+        .classList.remove("hidden");
+
+    document.querySelector(".sales-order")
+        .classList.remove("hidden");
+}
+function loginAsWarehouse(warehouseName) {
+
+    const user = users.find(
+        u => u.warehouse === warehouseName
+    );
+
+    if (!user) {
+        alert("Warehouse user not found");
+        return;
+    }
+
+    // حفظ بيانات الدخول
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("currentWarehouse", user.warehouse);
+    localStorage.setItem("userWarehouse", user.warehouse);
+    localStorage.setItem("userRole", user.role);
+
+    // إعادة تحميل الصفحة
+    location.reload();
+}
