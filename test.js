@@ -10,6 +10,9 @@ let isLoading = false;
 let showOnlyPartial = false;
 let selectedDateFilter = null;
 let showOnlyDistributed = false;
+let returnedOrders = new Set();
+let returnedOrdersMap = {};
+
 let localOrders = [];
 function hashData(data) {
     return JSON.stringify(
@@ -164,72 +167,130 @@ async function loadCanceledOrders() {
 
 // LOGIN  
 loginForm.onsubmit = e => {
+
     e.preventDefault();
 
     const u = users.find(
-        x => x.username === username.value && x.password === password.value
+        x =>
+            x.username === username.value &&
+            x.password === password.value
     );
 
+    // ❌ login failed
     if (!u) {
+
         loginError.classList.remove("hidden");
         return;
     }
+
+    // ✅ Packing Station
     if (u.warehouse === "Packing Station") {
 
         autoMoveToPacking();
-
     }
 
     loginError.classList.add("hidden");
 
+    // ✅ save session
     localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("currentWarehouse", u.warehouse);
-    localStorage.setItem("userWarehouse", u.warehouse);
-    localStorage.setItem("userRole", u.role);
 
+    localStorage.setItem(
+        "currentWarehouse",
+        u.warehouse
+    );
+
+    localStorage.setItem(
+        "userWarehouse",
+        u.warehouse
+    );
+
+    localStorage.setItem(
+        "userRole",
+        u.role
+    );
+
+    // ✅ show dashboard
     loginContainer.style.display = "none";
+
     dashboard.classList.remove("hidden");
 
-    // 🔥 manager يرى كل شيء
+    // =====================================
+    // ✅ MANAGER
+    // =====================================
+
     if (u.role === "manager") {
-        document.getElementById("teamNotesBtn").style.display = "block";
+
+        // show manager tools
+        document.getElementById(
+            "teamNotesBtn"
+        ).style.display = "block";
+
+        document.getElementById(
+            "warehouseSwitcher"
+        ).style.display = "block";
+
+        // show dashboard sections
+        document.querySelector(".kpis")
+            .style.display = "grid";
+
+        document.querySelector(".warehouse-container")
+            .style.display = "grid";
+
+        document.querySelector(".sales-order")
+            .style.display = "grid";
+
+        // dashboard home
+        showDashboardHome();
+
         listenToOrders();
 
+        return;
     }
-    // 🔥 باقي المستخدمين New Order فقط
-    else {
 
-        // إخفاء الداشبورد
-        document.querySelector(".kpis").style.display = "none";
-        document.querySelector(".warehouse-container").style.display = "none";
-        document.querySelector(".sales-order").style.display = "none";
+    // =====================================
+    // ✅ NORMAL USERS
+    // =====================================
 
-        // اظهار New Order
-        showNewOrderTab();
+    // hide manager tools
+    document.getElementById(
+        "warehouseSwitcher"
+    ).style.display = "none";
 
-        // تعديل القائمة الجانبية
-        const aside = document.querySelector("aside");
+    document.querySelector(".kpis")
+        .style.display = "none";
 
-        aside.innerHTML = `
-            <button onclick="signOut()" style="
-                width:100%;
-                padding:12px;
-                background:#ef4444;
-                border:none;
-                border-radius:8px;
-                color:white;
-                font-weight:600;
-                cursor:pointer;
-            ">
-                Logout
-            </button>
-        `;
-    }
+    document.querySelector(".warehouse-container")
+        .style.display = "none";
+
+    document.querySelector(".sales-order")
+        .style.display = "none";
+
+    // open new orders only
+    showNewOrderTab();
+
+    // simplify sidebar
+    const aside =
+        document.querySelector("aside");
+
+    aside.innerHTML = `
+        <button onclick="signOut()" style="
+            width:100%;
+            padding:12px;
+            background:#ef4444;
+            border:none;
+            border-radius:8px;
+            color:white;
+            font-weight:600;
+            cursor:pointer;
+        ">
+            Logout
+        </button>
+    `;
 };
-
-
 function getWarehouseBadgeColor(order, warehouse) {
-
+if (order.status === "returned") {
+    return "#dc2626";
+}
     if (
         order.status === "canceled" ||
         order.status === "canceled_before_delivery"
@@ -493,6 +554,11 @@ function showOrderDetails(type) {
             return dateToCheck >= CANCELED_START_DATE;
         });
     }
+if (type === "returned") {
+    todayFiltered = todayOrders.filter(o =>
+        o.status === "returned"
+    );
+}
     if (type === "completed") {
         todayFiltered = todayOrders.filter(o => o.status === "completed");
     }
@@ -586,6 +652,7 @@ let lastType = null;
                     order.status === "canceled" ? "Canceled" :
                     order.status === "distributed" ? "Distributed"  : order.status === "ready_to_distribute"  ? "Ready to Distribute" :
                     order.status === "completed" ? "In-Packing" :
+order.status === "returned" ? "Returned" :
                      order.status === "partial" ? "Partial" : "Pending";
 
                 return `
@@ -942,6 +1009,14 @@ function updateDashboard() {
     for (const order of allOrders) {
         order.status = resolveOrderStatus(order);
     }
+allOrders.forEach(order => {
+
+    if (returnedOrders.has(order.orderNo)) {
+
+        order.status = "returned";
+    }
+
+});
 const todayOrders = Array.isArray(applyFilters()) 
     ? applyFilters() 
     : Object.values(applyFilters() || {});
@@ -973,6 +1048,9 @@ const todayOrders = Array.isArray(applyFilters())
 
         return dateToCheck >= CANCELED_START_DATE;
     });
+const returnedToday = todayOrders.filter(o =>
+    o.status === "returned"
+);
 const distributedToday = todayOrders.filter(isDistributed);
 const readyToday = todayOrders.filter(o =>
     o.status === "ready_to_distribute"
@@ -1000,7 +1078,7 @@ const readyBacklog = accumulatedOrders.filter(o =>
     o.status === "ready_to_distribute"
 );
     // ================= DISPLAY =================
-
+updateKPINumber("returned", returnedToday.length);
     updateKPINumber("total", todayOrders.length);
     updateKPINumber("distributed", distributedToday.length);
     updateKPINumber("ready", readyToday.length);
@@ -1207,3 +1285,164 @@ function loadDistributedOrders() {
 //         });
 
 // }
+function showReturnTab() {
+
+    document.getElementById("dashboardHeader")
+        .style.display = "none";
+
+    document.getElementById("newOrderTab")
+        .classList.add("hidden");
+
+    document.getElementById("teamNotesTab")
+        .classList.add("hidden");
+
+    document.getElementById("readyTab")
+        .classList.add("hidden");
+
+    // 🔥 إظهار return tab
+    document.getElementById("returnTab")
+        .classList.remove("hidden");
+
+    // 🔥 إخفاء الداشبورد
+    document.querySelector(".kpis")
+        .classList.add("hidden");
+
+    document.querySelector(".warehouse-container")
+        .classList.add("hidden");
+
+    document.querySelector(".sales-order")
+        .classList.add("hidden");
+
+    
+    // 🔥 render مباشر
+    renderReturnedOrders();
+
+    // 🔥 focus على input
+    setTimeout(() => {
+
+        const input =
+            document.getElementById("returnOrderInput");
+
+        if (input) input.focus();
+
+    }, 200);
+}
+document.getElementById("returnOrderInput")
+.addEventListener("keydown", function(e) {
+
+    if (e.key !== "Enter") return;
+
+    const orderNo = this.value
+        .trim()
+        .toUpperCase();
+
+    if (!orderNo) return;
+
+    const order = allOrders.find(o =>
+        o.orderNo.toUpperCase() === orderNo
+    );
+
+    if (!order) {
+
+        alert("Order not found");
+        return;
+    }
+
+    // 🔥 تحديده Returned
+    returnedOrders.add(orderNo);
+
+    // 🔥 جلب المستودع تلقائياً
+    const warehouse =
+        getOrderWarehouse(orderNo);
+document.getElementById("returnOrderInput")
+    returnedOrdersMap[orderNo] = {
+        warehouse,
+        date: new Date()
+            .toISOString()
+            .slice(0, 10)
+    };
+saveReturnedOrders();
+    // تحديث الحالة
+    order.status = "returned";
+
+    // تحديث الواجهة
+    updateDashboard();
+
+    renderReturnedOrders();
+
+    this.value = "";
+});
+function renderReturnedOrders() {
+
+    const container =
+        document.getElementById("returnedOrdersList");
+
+    const orders =
+        Object.keys(returnedOrdersMap);
+
+    if (!orders.length) {
+
+        container.innerHTML =
+            "<p>No returned orders</p>";
+
+        return;
+    }
+
+    container.innerHTML = `
+        <table>
+            <tr>
+                <th>Order</th>
+                <th>Warehouse</th>
+                <th>Date</th>
+            </tr>
+
+            ${orders.map(orderNo => {
+
+                const data =
+                    returnedOrdersMap[orderNo];
+
+                return `
+                    <tr>
+                        <td>${orderNo}</td>
+                        <td>${data.warehouse}</td>
+                        <td>${data.date}</td>
+                    </tr>
+                `;
+            }).join("")}
+        </table>
+    `;
+}
+const savedReturnedOrders =
+    JSON.parse(
+        localStorage.getItem("returnedOrders") || "[]"
+    );
+
+returnedOrders = new Set(savedReturnedOrders);
+
+returnedOrdersMap =
+    JSON.parse(
+        localStorage.getItem("returnedOrdersMap") || "{}"
+    );
+function saveReturnedOrders() {
+
+    localStorage.setItem(
+        "returnedOrders",
+        JSON.stringify([...returnedOrders])
+    );
+
+    localStorage.setItem(
+        "returnedOrdersMap",
+        JSON.stringify(returnedOrdersMap)
+    );
+}
+
+function toggleWarehouseMenu(event) {
+
+    event.preventDefault();
+
+    const menu =
+        document.getElementById("warehouseMenu");
+
+    menu.classList.toggle("hidden");
+}
+
