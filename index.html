@@ -71,10 +71,51 @@
             <a id ="dsh" href="#" onclick="showDashboardHome()">
                  Dashboard</a>
              
-                    <a href="./p&c.html"> Warehouses</a>
+<div class="sidebar-dropdown">
+
+    <a href="#"
+       onclick="toggleWarehouseMenu(event)"
+       class="dropdown-btn">
+
+        <i class="fa-solid fa-warehouse"></i>
+        Warehouses
+
+        <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+    </a>
+<div id="warehouseMenu" class="dropdown-menu hidden">
+
+    <a href="#" onclick="loginAsWarehouse('PHARMA')">
+        PHARMA
+    </a>
+
+    <a href="#" onclick="loginAsWarehouse('RETAIL')">
+        RETAIL
+    </a>
+
+    <a href="#" onclick="loginAsWarehouse('P&C')">
+        P&C
+    </a>
+
+    <a href="#" onclick="loginAsWarehouse('LOREAL LUX')">
+        LOREAL LUX
+    </a>
+
+    <a href="#" onclick="loginAsWarehouse('BEESLINE')">
+        BEESLINE
+    </a>
+
+    <a href="#" onclick="loginAsWarehouse('Packing Station')">
+        Packing Station
+    </a>
+
+</div>
+
+</div>
                   <a href="#" onclick="showNewOrderTab()"> New Orders</a>
                 <a href"#" id="reade" onclick="showReadyToDistributeTab()">Ready To Distribute</a> 
-
+<a href="#" onclick="showReturnTab()">
+    Returns
+</a>
             <a href="#" id="teamNotesBtn" style="display:none;" onclick="openTeamNotesTab()">
                 Team Notes
             </a>
@@ -147,6 +188,30 @@ background:#22c55e;
 
                 </div>
             </header>
+<div id="returnTab" class="hidden">
+
+    <div style="padding:20px">
+
+        <input
+            type="text"
+            id="returnOrderInput"
+            placeholder="Scan / Enter Order Number"
+            style="
+                width:100%;
+                padding:14px;
+                border-radius:10px;
+                border:none;
+                font-size:18px;
+                background:#0f172a;
+                color:white;
+            "
+        >
+
+        <div id="returnedOrdersList" style="margin-top:20px"></div>
+
+    </div>
+
+</div>
             <div id="teamNotesTab" class="hidden">
 
                 <h2 style="margin-bottom:15px"> Team Notes</h2>
@@ -361,7 +426,13 @@ Export Excel
                 <div class="kpi" onclick="showOrderDetails('canceled')">
                     <div>Canceled Before Delivery</div>
                     <div id="canceled" class="value" style="color:#f76666">0</div>
+                    
+                    
                 </div>
+<div class="kpi" onclick="showOrderDetails('returned')">
+    <h3>Returned</h3>
+    <div id="returned" class="value">0</div>
+</div>
             </div>
 
             <div class="warehouse-container">
