@@ -698,59 +698,86 @@ function listenToOrders() {
             allOrders = [];
             recentOrders = [];
             renderRecentOrders();
-    updateFilterButtonsCounts();
+            updateFilterButtonsCounts();
             updateDashboard();
             renderReadyOrders();
             return;
-
         }
+
         let allOrdersMap = {};
         // تحويل Firebase object الى array
         allOrdersMap = data;
-        const firebaseOrders = Object.values(data);
-        const currentWarehouse = localStorage.getItem("currentWarehouse");
-        const role = localStorage.getItem("userRole");
 
-        // 🔥 دمج الطلبات التي لها نفس الرقم
+        const firebaseOrders = Object.values(data);
+        const role = localStorage.getItem("userRole");
+        const currentWarehouse = (localStorage.getItem("currentWarehouse") || "").trim().toUpperCase();
+
         let mergedOrders = mergeOrdersByNumber(firebaseOrders);
 
-        // 🔥 المدير يرى كل الطلبات
-        if (role === "manager" || currentWarehouse === "Packing Station") {
+        // =====================
+        // 1. MANAGER يرى الكل
+        // =====================
+        if (role === "manager") {
 
-            // يرى كل الطلبات
-allOrders = mergeOrdersByNumber([
-    ...firebaseOrders,
-    ...localOrders
-]);            
-
-        } else {
-
-            const normalizedUserWH = currentWarehouse.trim().toUpperCase();
-
-            allOrders = mergedOrders.filter(order =>
-                order.warehouses?.some(w =>
-                    w.base?.trim().toUpperCase() === normalizedUserWH
-                )
-            );
+            allOrders = mergedOrders;
 
         }
-allOrders = mergedOrders.sort((a, b) =>
-    new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)
-);
+
+        // =====================
+        // 2. PACKING STATION يرى الكل
+        // =====================
+        else if (currentWarehouse === "PACKING STATION") {
+
+            allOrders = mergedOrders;
+
+        }
+
+        // =====================
+        // 3. USER يرى فقط طلباته
+        // =====================
+        else {
+
+allOrders = mergedOrders
+    .filter(order =>
+        order.warehouses?.some(w =>
+            (w.base || "").trim().toUpperCase() === currentWarehouse
+        )
+    )
+    .map(order => {
+
+        // 👇 نخلي المستخدم يشوف فقط مستودعه داخل الطلب
+        return {
+            ...order,
+            warehouses: order.warehouses.filter(w =>
+                (w.base || "").trim().toUpperCase() === currentWarehouse
+            )
+        };
+
+    });
+        }
+
+        // ✅ FIX: لا نلغي الفلترة بعد الآن
+        allOrders = allOrders.sort((a, b) =>
+            new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)
+        );
+
         // 🔥 تحديث الحالة وعدد المستودعات
-        allOrders.forEach(order => {
-            order.status = resolveOrderStatus(order);
-            order.warehouseCount = order.warehouses ? order.warehouses.length : 0;
-        });
+allOrders.forEach(order => {
+
+    if (!order.history) {
+        order.history = [];
+    }
+
+    order.status = resolveOrderStatus(order);
+    order.warehouseCount = order.warehouses ? order.warehouses.length : 0;
+});
 
         // 🔥 بناء recent orders
         buildRecentOrders();
         loadDistributedOrders();
 
         renderRecentOrders();
-
         updateDashboard();
-
 
     });
 
@@ -782,10 +809,11 @@ function mergeOrdersByNumber(orders) {
         const orderNo = (order.orderNo || "").trim().toUpperCase();
 
         if (!map[orderNo]) {
-            map[orderNo] = {
-                ...order,
-                warehouses: []
-            };
+map[orderNo] = {
+    ...order,
+    warehouses: order.warehouses || [],
+    history: order.history || []   // 🔥 IMPORTANT FIX
+};
         }
 if (order.status) {
     map[orderNo].status = order.status;
@@ -995,11 +1023,18 @@ function showOrderHistory(orderNo) {
     const order = allOrders.find(o => o.orderNo === orderNo);
     if (!order) return;
 
-    const history = order.history || [];
+const history = Array.isArray(order.history) ? order.history : [];
     let html = "";
 
     if (!history.length) {
-        html = `<p>No history found</p>`;
+        html = `<div style="
+    text-align:center;
+    padding:20px;
+    color:#94a3b8;
+    font-size:13px;
+">
+    🕓 No activity recorded for this order yet
+</div>`;
     } else {
         // لمنع تكرار المستودعات
         const seenWarehouses = new Set();
