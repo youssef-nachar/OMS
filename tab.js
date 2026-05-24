@@ -26,23 +26,3 @@ function showDashboardHome() {
     document.querySelector(".sales-order")
         .classList.remove("hidden");
 }
-function loginAsWarehouse(warehouseName) {
-
-    const user = users.find(
-        u => u.warehouse === warehouseName
-    );
-
-    if (!user) {
-        alert("Warehouse user not found");
-        return;
-    }
-
-    // حفظ بيانات الدخول
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("currentWarehouse", user.warehouse);
-    localStorage.setItem("userWarehouse", user.warehouse);
-    localStorage.setItem("userRole", user.role);
-
-    // إعادة تحميل الصفحة
-    location.reload();
-}
