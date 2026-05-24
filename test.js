@@ -10,6 +10,7 @@ let isLoading = false;
 let showOnlyPartial = false;
 let selectedDateFilter = null;
 let showOnlyDistributed = false;
+let selectedWarehouseFilter = "";
 let returnedOrders = new Set();
 let returnedOrdersMap = {};
 let localOrders = [];
@@ -73,14 +74,20 @@ window.addEventListener('DOMContentLoaded', () => {
     const role = localStorage.getItem("userRole");
 
     if (loggedIn === "true") {
-
+// 🔥 إخفاء العناصر للـ manager
         loginContainer.style.display = "none";
         dashboard.classList.remove("hidden");
 
         if (role === "manager") {
             document.getElementById("teamNotesBtn").style.display = "block";
             listenToOrders();
-
+document.getElementById("newOrderNumber")?.style.setProperty("display", "none");
+document.getElementById("warehouseName")?.style.setProperty("display", "none");
+document.getElementById("newWarehouseName")?.style.setProperty("display", "none");
+document.getElementById("y")?.style.setProperty("display", "none");
+document.getElementById("n")?.style.setProperty("display", "none");
+document.getElementById("newOrderDate").style.display = "none";
+document.getElementById("newOrderTab")?.classList.add("hidden");
         } else {
 
             document.querySelector(".kpis").style.display = "none";
@@ -220,20 +227,51 @@ loginForm.onsubmit = e => {
     // =========================
     // MANAGER
     // =========================
-    if (u.role === "manager") {
+    // =========================
+// MANAGER
+// =========================
+if (u.role === "manager") {
 
-        if (teamNotesBtn) teamNotesBtn.classList.remove("hidden");
-        if (warehouseSwitcher) warehouseSwitcher.classList.remove("hidden");
-        if (kpis) kpis.classList.remove("hidden");
-        if (warehouseContainer) warehouseContainer.classList.remove("hidden");
-        if (salesOrder) salesOrder.classList.remove("hidden");
+    // إظهار عناصر المدير فقط
+    if (teamNotesBtn) teamNotesBtn.classList.remove("hidden");
+    if (warehouseSwitcher) warehouseSwitcher.classList.remove("hidden");
+    if (kpis) kpis.classList.remove("hidden");
+    if (warehouseContainer) warehouseContainer.classList.remove("hidden");
+    if (salesOrder) salesOrder.classList.remove("hidden");
 
-        showDashboardHome();
-        listenToOrders();
-
-        return;
+    // 🔥 إخفاء واجهة إدخال الطلب
+    const newOrderTab = document.getElementById("newOrderTab");
+    if (newOrderTab) {
+        newOrderTab.classList.add("hidden");
+    }
+document.getElementById("y").style.display = "none";
+document.getElementById("h").style.display = "none";
+document.getElementById("n").style.display= "none";
+document.getElementById("newOrderDate").style.display = "none";
+    // 🔥 إخفاء input الطلب
+    const newOrderInput = document.getElementById("newOrderNumber");
+    if (newOrderInput) {
+        newOrderInput.style.display = "none";
     }
 
+    // 🔥 إخفاء اسم المستودع
+    const warehouseName = document.getElementById("warehouseName");
+    if (warehouseName) {
+        warehouseName.style.display = "none";
+    }
+
+    // 🔥 إخفاء newWarehouseName
+    const newWarehouseName = document.getElementById("newWarehouseName");
+
+    if (newWarehouseName) {
+        newWarehouseName.style.display = "none";
+    }
+
+    showDashboardHome();
+    listenToOrders();
+
+    return;
+}
     // =========================
     // NORMAL USER
     // =========================
@@ -1429,4 +1467,297 @@ function toggleWarehouseMenu(event) {
         document.getElementById("warehouseMenu");
 
     menu.classList.toggle("hidden");
+}
+
+
+function loginAsWarehouse(warehouseName) {
+
+    const user = users.find(
+        u => u.warehouse === warehouseName
+    );
+
+    if (!user) {
+        alert("Warehouse user not found");
+        return;
+    }
+
+    // حفظ بيانات الدخول
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("currentWarehouse", user.warehouse);
+    localStorage.setItem("userWarehouse", user.warehouse);
+    localStorage.setItem("userRole", user.role);
+
+    // إعادة تحميل الصفحة
+    location.reload();
+}
+
+function showReportsTab() {
+
+    document.getElementById("dashboardHeader").style.display = "none";
+
+    document.getElementById("newOrderTab")
+        ?.classList.add("hidden");
+
+    document.getElementById("teamNotesTab")
+        ?.classList.add("hidden");
+
+    document.getElementById("readyTab")
+        ?.classList.add("hidden");
+
+    document.getElementById("returnTab")
+        ?.classList.add("hidden");
+
+    document.getElementById("reportsTab")
+        ?.classList.remove("hidden");
+
+    document.querySelector(".kpis")
+        ?.classList.add("hidden");
+
+    document.querySelector(".warehouse-container")
+        ?.classList.add("hidden");
+
+    document.querySelector(".sales-order")
+        ?.classList.add("hidden");
+}
+function getReportDate(order) {
+
+    if (!order) return "";
+
+    if (
+        distributedOrdersMap &&
+        distributedOrdersMap[order.orderNo]
+    ) {
+
+        return distributedOrdersMap[
+            order.orderNo
+        ].date || "";
+    }
+
+    return (
+        order.date ||
+        getEffectiveDate(order) ||
+        ""
+    );
+}
+function formatStatus(status) {
+
+    switch (status) {
+
+        case "completed":
+            return "In Packing";
+
+        case "distributed":
+            return "Distributed";
+
+        case "ready_to_distribute":
+            return "Ready To Distribute";
+
+        case "partial":
+            return "Partial";
+
+        case "returned":
+            return "Returned";
+
+        case "canceled":
+            return "Canceled";
+
+        default:
+            return "Pending";
+    }
+}
+
+function exportReport(reportName, orders) {
+
+    try {
+
+        if (!orders?.length) {
+
+            alert("No orders found");
+            return;
+        }
+
+        // 🔥 بيانات خفيفة فقط
+        const rows = orders.map(order => ({
+
+            Order: order.orderNo || "",
+
+            Status: formatStatus(
+                order.status || ""
+            ),
+
+            Warehouses:
+                order.warehouses?.length || 0,
+
+            Date:
+                getReportDate(order) || ""
+
+        }));
+
+        // 🔥 Loading UI
+        const loading =
+            document.getElementById("exportLoading");
+
+        if (loading) {
+            loading.style.display = "flex";
+        }
+
+        // 🔥 إنشاء Worker
+        const worker = new Worker(
+            "./excel-worker.js"
+        );
+
+        worker.postMessage({
+            reportName,
+            rows
+        });
+
+        worker.onmessage = function (e) {
+
+            if (loading) {
+                loading.style.display = "none";
+            }
+
+            const data = e.data;
+
+            if (!data.success) {
+
+                alert(
+                    "Export failed: " +
+                    data.error
+                );
+
+                worker.terminate();
+
+                return;
+            }
+
+            // 🔥 تنزيل الملف
+            const blob = new Blob(
+                [data.buffer],
+                {
+                    type:
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                }
+            );
+
+            const url =
+                URL.createObjectURL(blob);
+
+            const a =
+                document.createElement("a");
+
+            a.href = url;
+
+            a.download = data.fileName;
+
+            document.body.appendChild(a);
+
+            a.click();
+
+            a.remove();
+
+            URL.revokeObjectURL(url);
+
+            worker.terminate();
+        };
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert(err.message);
+    }
+}
+function exportDailyReport() {
+
+    const today =
+        new Date()
+        .toISOString()
+        .slice(0, 10);
+
+    const orders =
+        allOrders.filter(order => {
+
+            const date =
+                getReportDate(order);
+
+            return date === today;
+        });
+
+    exportReport(
+        `Daily_Report_${today}`,
+        orders
+    );
+}
+function exportWeeklyReport() {
+
+    const today = new Date();
+
+    const weekAgo = new Date();
+
+    weekAgo.setDate(
+        today.getDate() - 7
+    );
+
+    const orders =
+        allOrders.filter(order => {
+
+            const rawDate =
+                getReportDate(order);
+
+            if (!rawDate) return false;
+
+            const date =
+                new Date(rawDate);
+
+            return (
+                !isNaN(date) &&
+                date >= weekAgo &&
+                date <= today
+            );
+        });
+
+    exportReport(
+        `Weekly_Report_${
+            today.toISOString().slice(0,10)
+        }`,
+        orders
+    );
+}
+function exportMonthlyReport() {
+
+    const today = new Date();
+
+    const month =
+        today.getMonth();
+
+    const year =
+        today.getFullYear();
+
+    const orders =
+        allOrders.filter(order => {
+
+            const rawDate =
+                getReportDate(order);
+
+            if (!rawDate) return false;
+
+            const date =
+                new Date(rawDate);
+
+            return (
+                !isNaN(date) &&
+                date.getMonth() === month &&
+                date.getFullYear() === year
+            );
+        });
+
+    exportReport(
+        `Monthly_Report_${
+            year
+        }_${
+            month + 1
+        }`,
+        orders
+    );
 }
