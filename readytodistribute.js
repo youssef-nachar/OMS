@@ -1,3 +1,34 @@
+
+let appSettings = {
+    batches: [
+        {
+            name: "Batch 1",
+            from: "10:00",
+            to: "11:30"
+        },
+        {
+            name: "Batch 2",
+            from: "11:30",
+            to: "13:00"
+        },
+        {
+            name: "Batch 3",
+            from: "13:00",
+            to: "15:30"
+        },
+        {
+            name: "Wakilni",
+            from: "15:30",
+            to: "23:59"
+        }
+    ],
+
+    batchesColumns: 2,
+
+    readyPageTitle: "🚚 Ready To Distribute",
+
+    readyPageColor: "#38bdf8"
+};
 function renderSingleBatch(title, orders) {
 
     return `
@@ -45,7 +76,7 @@ grouped[batchName].push(o);
 
     container.innerHTML = `
         <h3 style="color:#38bdf8">📦 Batches</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div style="display:grid;grid-template-columns:repeat(${appSettings.batchesColumns},1fr);gap:20px">
             ${html}
         </div>
     `;
@@ -55,24 +86,26 @@ function getCurrentBatch() {
 
     const now = new Date();
 
-    const t1 = new Date();
-    t1.setHours(10, 0, 0, 0);
+    const currentMinutes =
+        now.getHours() * 60 + now.getMinutes();
 
-    const t2 = new Date();
-    t2.setHours(11, 30, 0, 0);
+    for (const batch of appSettings.batches) {
 
-    const t3 = new Date();
-    t3.setHours(13, 0, 0, 0);
+        const [fromH, fromM] = batch.from.split(":").map(Number);
+        const [toH, toM] = batch.to.split(":").map(Number);
 
-    const t4 = new Date();
-    t4.setHours(15, 30, 0, 0);
+        const fromMinutes = fromH * 60 + fromM;
+        const toMinutes = toH * 60 + toM;
 
-    if (now >= t1 && now < t2) return "Batch 1";
-    if (now >= t2 && now < t3) return "Batch 2";
-    if (now >= t3 && now < t4) return "Batch 3";
-    if (now >= t4) return "Wakilni";
+        if (
+            currentMinutes >= fromMinutes &&
+            currentMinutes < toMinutes
+        ) {
+            return batch.name;
+        }
+    }
 
-    return "Early"; // قبل 10
+    return "No Batch";
 }
 function openReadyEditModal(orderNo, boxes, cbm) {
 
@@ -331,6 +364,20 @@ width:100%;
 ">
     🚚 Distribute Selected
 </button>
+<button onclick="showSettingsTab()"
+style="
+    width:100%;
+    padding:12px;
+    background:#1e293b;
+    border:none;
+    border-radius:10px;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:10px;
+">
+    ⚙️ Settings
+</button>
         </div>
 
         <!-- RIGHT PANEL (TABLE) -->
@@ -585,4 +632,178 @@ container.innerHTML = `
     `).join("")}
 </table>
 `;
+}
+
+function loadSettings() {
+
+    const saved = localStorage.getItem("appSettings");
+
+    if (saved) {
+        appSettings = JSON.parse(saved);
+    }
+}
+function saveSettings() {
+
+    localStorage.setItem(
+        "appSettings",
+        JSON.stringify(appSettings)
+    );
+}
+function showSettingsTab() {
+
+    const container = document.getElementById("settingsTab");
+
+    if (!container) {
+        console.error("settingsTab not found");
+        return;
+    }
+
+    document.querySelectorAll(".main > div").forEach(div => {
+        div.classList.add("hidden");
+    });
+
+    container.classList.remove("hidden");
+
+    container.innerHTML = `
+
+    <div style="
+        background:#0f172a;
+        padding:20px;
+        border-radius:16px;
+        max-width:1000px;
+        margin:auto;
+    ">
+
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:20px;
+        ">
+
+            <h2 style="color:white">
+                ⚙️ Batch Settings
+            </h2>
+
+            <button onclick="showReadyToDistributeTab()"
+                style="
+                    padding:10px 16px;
+                    background:#22c55e;
+                    border:none;
+                    border-radius:8px;
+                    color:white;
+                    cursor:pointer;
+                ">
+                ← Back
+            </button>
+
+        </div>
+
+        <div id="batchSettingsList">
+
+            ${appSettings.batches.map((b, index) => `
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:1fr 1fr 1fr auto;
+                    gap:10px;
+                    margin-bottom:12px;
+                    background:#020617;
+                    padding:12px;
+                    border-radius:10px;
+                ">
+
+                    <input
+                        value="${b.name}"
+                        onchange="updateBatchName(${index}, this.value)"
+                        style="padding:10px;border-radius:8px"
+                    >
+
+                    <input
+                        type="time"
+                        value="${b.from}"
+                        onchange="updateBatchFrom(${index}, this.value)"
+                        style="padding:10px;border-radius:8px"
+                    >
+
+                    <input
+                        type="time"
+                        value="${b.to}"
+                        onchange="updateBatchTo(${index}, this.value)"
+                        style="padding:10px;border-radius:8px"
+                    >
+
+                    <button onclick="deleteBatch(${index})"
+                        style="
+                            background:#ef4444;
+                            border:none;
+                            border-radius:8px;
+                            color:white;
+                            padding:10px;
+                            cursor:pointer;
+                        ">
+                        ❌
+                    </button>
+
+                </div>
+
+            `).join("")}
+
+        </div>
+
+        <button onclick="addBatch()"
+            style="
+                margin-top:15px;
+                padding:12px 18px;
+                background:#0ea5e9;
+                border:none;
+                border-radius:10px;
+                color:white;
+                font-weight:600;
+                cursor:pointer;
+            ">
+            ➕ Add Batch
+        </button>
+
+    </div>
+    `;
+}
+function updateBatchName(index, value) {
+
+    appSettings.batches[index].name = value;
+    saveSettings();
+}
+
+function updateBatchFrom(index, value) {
+
+    appSettings.batches[index].from = value;
+    saveSettings();
+}
+
+function updateBatchTo(index, value) {
+
+    appSettings.batches[index].to = value;
+    saveSettings();
+}
+
+function deleteBatch(index) {
+
+    appSettings.batches.splice(index, 1);
+
+    saveSettings();
+
+    showSettingsTab();
+}
+
+function addBatch() {
+
+    appSettings.batches.push({
+        name: "New Batch",
+        from: "00:00",
+        to: "00:00"
+    }); 
+
+    saveSettings();
+
+    showSettingsTab();
 }
