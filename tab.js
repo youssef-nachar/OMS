@@ -1,5 +1,5 @@
 function showDashboardHome() {
-
+document.getElementById("reportConfigPage").classList.add("hidden")
     // إظهار الهيدر
     document.getElementById("dashboardHeader").style.display = "flex";
 
