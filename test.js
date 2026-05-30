@@ -14,6 +14,7 @@ let selectedWarehouseFilter = "";
 let returnedOrders = new Set();
 let returnedOrdersMap = {};
 let localOrders = [];
+let currentReportType = "";
 function hashData(data) {
 return JSON.stringify(
 data
@@ -1503,7 +1504,7 @@ location.reload();
 }
 
 function showReportsTab() {
-
+document.getElementById("reportConfigPage").classList.add("hidden")
 document.getElementById("dashboardHeader").style.display = "none";  
 
 document.getElementById("newOrderTab")  
@@ -1681,102 +1682,6 @@ try {
 
     alert(err.message);  
 }
-
-}
-function exportDailyReport() {
-
-const today =  
-    new Date()  
-    .toISOString()  
-    .slice(0, 10);  
-
-const orders =  
-    allOrders.filter(order => {  
-
-        const date =  
-            getReportDate(order);  
-
-        return date === today;  
-    });  
-
-exportReport(  
-    `Daily_Report_${today}`,  
-    orders  
-);
-
-}
-function exportWeeklyReport() {
-
-const today = new Date();  
-
-const weekAgo = new Date();  
-
-weekAgo.setDate(  
-    today.getDate() - 7  
-);  
-
-const orders =  
-    allOrders.filter(order => {  
-
-        const rawDate =  
-            getReportDate(order);  
-
-        if (!rawDate) return false;  
-
-        const date =  
-            new Date(rawDate);  
-
-        return (  
-            !isNaN(date) &&  
-            date >= weekAgo &&  
-            date <= today  
-        );  
-    });  
-
-exportReport(  
-    `Weekly_Report_${  
-        today.toISOString().slice(0,10)  
-    }`,  
-    orders  
-);
-
-}
-function exportMonthlyReport() {
-
-const today = new Date();  
-
-const month =  
-    today.getMonth();  
-
-const year =  
-    today.getFullYear();  
-
-const orders =  
-    allOrders.filter(order => {  
-
-        const rawDate =  
-            getReportDate(order);  
-
-        if (!rawDate) return false;  
-
-        const date =  
-            new Date(rawDate);  
-
-        return (  
-            !isNaN(date) &&  
-            date.getMonth() === month &&  
-            date.getFullYear() === year  
-        );  
-    });  
-
-exportReport(  
-    `Monthly_Report_${  
-        year  
-    }_${  
-        month + 1  
-    }`,  
-    orders  
-);
 
 }
 async function exportAdvancedExcel() {
@@ -2078,4 +1983,490 @@ function toggleAdvancedReports() {
         btn.innerHTML = "❌ Hide Analytics";
     }
 
+}
+let statusChart = null;
+
+function loadEnterpriseReport() {
+
+    const from =
+        document.getElementById("advancedFromDate").value;
+
+    const to =
+        document.getElementById("advancedToDate").value;
+
+    if (!from || !to) {
+        alert("Select date range");
+        return;
+    }
+
+    const orders = allOrders.filter(order => {
+
+        const date = getReportDate(order);
+
+        if (!date) return false;
+
+        return date >= from && date <= to;
+
+    });
+
+    if (!orders.length) {
+        alert("No orders found");
+        return;
+    }
+
+    renderEnterpriseKPIs(orders);
+    renderWarehouseAnalytics(orders);
+    renderDelayedOrders(orders);
+    renderStatusChart(orders);
+}
+
+function renderEnterpriseKPIs(orders){
+
+    const total = orders.length;
+
+    const distributed =
+        orders.filter(x =>
+            x.status === "distributed"
+        ).length;
+
+    const packing =
+        orders.filter(x =>
+            x.status === "completed"
+        ).length;
+
+    const pending =
+        orders.filter(x =>
+            x.status === "pending" ||
+            x.status === "partial"
+        ).length;
+
+    const ready =
+        orders.filter(x =>
+            x.status === "ready_to_distribute"
+        ).length;
+
+    const returned =
+        orders.filter(x =>
+            x.status === "returned"
+        ).length;
+
+    const canceled =
+        orders.filter(x =>
+            x.status === "canceled"
+        ).length;
+
+    const percent = n =>
+        total
+        ? ((n / total) * 100).toFixed(1)
+        : 0;
+
+    document.getElementById("reportStats").innerHTML = `
+
+    ${buildCard("Total Orders",total,"100%")}
+    ${buildCard("In Packing",packing,percent(packing)+"%")}
+    ${buildCard("Pending",pending,percent(pending)+"%")}
+    ${buildCard("Ready",ready,percent(ready)+"%")}
+    ${buildCard("Distributed",distributed,percent(distributed)+"%")}
+    ${buildCard("Returned",returned,percent(returned)+"%")}
+    ${buildCard("Canceled",canceled,percent(canceled)+"%")}
+
+    `;
+}
+
+function buildCard(title,value,percent){
+
+    return `
+        <div class="report-card">
+
+            <div class="report-title">
+                ${title}
+            </div>
+
+            <div class="report-value">
+                ${value}
+            </div>
+
+            <div class="report-percent">
+                ${percent}
+            </div>
+
+        </div>
+    `;
+}
+
+function renderWarehouseAnalytics(orders){
+
+    const stats = {};
+
+    orders.forEach(order=>{
+
+        order.warehouses.forEach(w=>{
+
+            const wh = w.base;
+
+            if(!stats[wh]){
+
+                stats[wh] = {
+                    total:0,
+                    distributed:0,
+                    pending:0
+                };
+
+            }
+
+            stats[wh].total++;
+
+            if(order.status==="distributed"){
+                stats[wh].distributed++;
+            }else{
+                stats[wh].pending++;
+            }
+
+        });
+
+    });
+
+    let html = `
+    <table class="analytics-table">
+
+        <tr>
+            <th>Warehouse</th>
+            <th>Total</th>
+            <th>Distributed</th>
+            <th>Rate</th>
+        </tr>
+    `;
+
+    Object.entries(stats).forEach(([wh,data])=>{
+
+        const rate =
+            data.total
+            ? ((data.distributed/data.total)*100).toFixed(1)
+            : 0;
+
+        html += `
+        <tr>
+            <td>${wh}</td>
+            <td>${data.total}</td>
+            <td>${data.distributed}</td>
+            <td>${rate}%</td>
+        </tr>
+        `;
+
+    });
+
+    html += "</table>";
+
+    document.getElementById(
+        "warehouseAnalytics"
+    ).innerHTML = html;
+}
+
+function renderDelayedOrders(orders){
+
+    const today = new Date();
+
+    const delayed = orders
+        .map(order=>{
+
+            const days =
+                Math.floor(
+                    (today - new Date(order.date))
+                    /86400000
+                );
+
+            return {
+                orderNo:order.orderNo,
+                days
+            };
+
+        })
+        .sort((a,b)=>b.days-a.days)
+        .slice(0,20);
+
+    let html = `
+    <table class="analytics-table">
+
+        <tr>
+            <th>Order</th>
+            <th>Days Waiting</th>
+        </tr>
+    `;
+
+    delayed.forEach(d=>{
+
+        html += `
+        <tr>
+            <td>${d.orderNo}</td>
+            <td>${d.days}</td>
+        </tr>
+        `;
+
+    });
+
+    html += "</table>";
+
+    document.getElementById(
+        "delayedOrders"
+    ).innerHTML = html;
+}
+
+function renderStatusChart(orders){
+
+    const counts = {
+        pending:0,
+        packing:0,
+        ready:0,
+        distributed:0,
+        returned:0,
+        canceled:0
+    };
+
+    orders.forEach(order=>{
+
+        switch(order.status){
+
+            case "completed":
+                counts.packing++;
+                break;
+
+            case "ready_to_distribute":
+                counts.ready++;
+                break;
+
+            case "distributed":
+                counts.distributed++;
+                break;
+
+            case "returned":
+                counts.returned++;
+                break;
+
+            case "canceled":
+                counts.canceled++;
+                break;
+
+            default:
+                counts.pending++;
+        }
+
+    });
+
+    const ctx =
+        document.getElementById("statusChart");
+
+    if(statusChart){
+        statusChart.destroy();
+    }
+
+    statusChart = new Chart(ctx,{
+        type:"doughnut",
+        data:{
+            labels:[
+                "Pending",
+                "Packing",
+                "Ready",
+                "Distributed",
+                "Returned",
+                "Canceled"
+            ],
+            datasets:[{
+                data:[
+                    counts.pending,
+                    counts.packing,
+                    counts.ready,
+                    counts.distributed,
+                    counts.returned,
+                    counts.canceled
+                ]
+            }]
+        }
+    });
+}
+
+function openReportConfig(type) {
+
+    currentReportType = type;
+
+    document.getElementById("reportsTab")
+        .classList.add("hidden");
+
+    document.getElementById("reportConfigPage")
+        .classList.remove("hidden");
+loadReportWarehouses()
+    const titles = {
+
+        daily: "Daily Report",
+
+        warehouse: "Warehouse Report",
+
+        pending: "Pending Orders Report",
+
+        distributed: "Distributed Report",
+
+        returned: "Returned Orders Report",
+
+        canceled: "Canceled Orders Report"
+
+    };
+
+    document.getElementById("reportTitle")
+        .textContent = titles[type];
+}
+function generateSelectedReport() {
+
+    const warehouse =
+        document.getElementById("reportWarehouse").value;
+
+    const from =
+        document.getElementById("reportFrom").value;
+
+    const to =
+        document.getElementById("reportTo").value;
+
+    const exportType =
+        document.getElementById("reportExportType").value;
+
+    let orders = [...allOrders];
+
+    // Date Filter
+    if (from) {
+        orders = orders.filter(o =>
+            getReportDate(o) >= from
+        );
+    }
+
+    if (to) {
+        orders = orders.filter(o =>
+            getReportDate(o) <= to
+        );
+    }
+
+    // Warehouse Filter
+    if (warehouse) {
+
+        orders = orders.filter(order =>
+            order.warehouses.some(w =>
+                w.base === warehouse
+            )
+        );
+    }
+
+    // Report Type Filter
+    switch(currentReportType){
+
+        case "pending":
+            orders = orders.filter(o =>
+                o.status === "pending" ||
+                o.status === "partial"
+            );
+            break;
+
+        case "distributed":
+            orders = orders.filter(o =>
+                o.status === "distributed"
+            );
+            break;
+
+        case "returned":
+            orders = orders.filter(o =>
+                o.status === "returned"
+            );
+            break;
+
+        case "canceled":
+            orders = orders.filter(o =>
+                o.status === "canceled"
+            );
+            break;
+    }
+
+    if(exportType === "excel"){
+
+        exportReport(
+            currentReportType + "_report",
+            orders
+        );
+
+    } else {
+
+        exportPDFReport(
+            currentReportType + "_report",
+            orders
+        );
+    }
+}
+function exportPDFReport(reportName, orders) {
+
+    const doc = new jsPDF();
+
+    doc.text(reportName, 10, 10);
+
+    let y = 20;
+
+    orders.forEach(order => {
+
+        doc.text(
+            `${order.orderNo} | ${order.status}`,
+            10,
+            y
+        );
+
+        y += 8;
+
+        if(y > 280){
+            doc.addPage();
+            y = 20;
+        }
+
+    });
+
+    doc.save(reportName + ".pdf");
+}
+function loadWarehouseOptions() {
+
+    const select =
+        document.getElementById("reportWarehouse");
+
+    const warehouses =
+        [...new Set(
+            allOrders.flatMap(o =>
+                o.warehouses.map(w => w.base)
+            )
+        )];
+
+    select.innerHTML =
+        '<option value="">All Warehouses</option>';
+
+    warehouses.forEach(wh => {
+
+        select.innerHTML += `
+            <option value="${wh}">
+                ${wh}
+            </option>
+        `;
+    });
+}
+const warehouses = [
+    "PHARMA",
+    "RETAIL",
+    "P&C",
+    "LOREAL LUX",
+    "BEESLINE",
+    "Packing Station"
+];
+
+function loadReportWarehouses() {
+    const select = document.getElementById("reportWarehouse");
+    if (!select) return;
+
+    // نخلي أول option كما هو
+    select.innerHTML = `<option value="">All Warehouses</option>`;
+
+    warehouses.forEach(w => {
+        const option = document.createElement("option");
+        option.value = w;
+        option.textContent = w;
+        select.appendChild(option);
+    });
 }
