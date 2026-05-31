@@ -3221,13 +3221,7 @@ background:#0ea5e911;
     border-color:#3b82f6;
     box-shadow:0 0 0 4px rgba(59,130,246,.15);
 }
-input[type="date"] {
-    color-scheme: dark;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
+.date-field input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
-    opacity: 1;
-    cursor: pointer;
 }
 
