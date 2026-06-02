@@ -977,6 +977,9 @@ function showOrderPreview(order) {
     }
 }
 function resolveOrderStatus(order) {
+if (order.status === "checked") {
+    return "checked";
+}
     if ((order.comment || "").toLowerCase().includes("canceled")
         && !distributedOrdersMap[order.orderNo]) {
         return "canceled_before_delivery";
