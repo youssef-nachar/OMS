@@ -1,4 +1,5 @@
-
+let selectedCompanyFilter = "";
+let selectedStatusFilter = "";
 let appSettings = {
     batchTypes: {
 
@@ -217,22 +218,60 @@ document.getElementById("readyEditModal").addEventListener("click", (e) => {
 
 function exportReadyToExcel() {
 
-    const readyOrders = allOrders.filter(o =>
-        o.readyToDistribute || o.status === "ready_to_distribute"
+    let readyOrders = allOrders.filter(o =>
+        o.readyToDistribute ||
+        o.status === "ready_to_distribute" ||
+        o.status === "checked"
     );
+
+    // Company filter
+    if (selectedCompanyFilter) {
+        readyOrders = readyOrders.filter(o => o.company === selectedCompanyFilter);
+    }
+
+    // Status filter
+    if (selectedStatusFilter === "checked") {
+        readyOrders = readyOrders.filter(o => o.status === "checked");
+    }
+
+    if (selectedStatusFilter === "ready") {
+        readyOrders = readyOrders.filter(o => o.status === "ready_to_distribute");
+    }
 
     if (!readyOrders.length) {
         alert("No data to export");
         return;
     }
 
-    let csv = "Order,Boxes,CBM,Status\n";
+    let totalBoxes = 0;
+
+    let csv = "Order,Boxes,CBM,Company,Status,Note\n";
 
     readyOrders.forEach(o => {
-        csv += `${o.orderNo},${o.boxes || 0},${o.cbm || 0}, ${o.note || 0},Ready\n`;
+
+        const statusText =
+            o.status === "checked"
+                ? "Checked"
+                : o.status === "ready_to_distribute"
+                    ? "Ready"
+                    : "Unknown";
+
+        const boxes = Number(o.boxes || 0);
+        totalBoxes += boxes;
+
+        csv += [
+            o.orderNo || "",
+            boxes,
+            o.cbm || 0,
+            o.company || "",
+            statusText,
+            o.emailOrComment || ""
+        ].join(",") + "\n";
     });
 
-    // إنشاء الملف
+    // ✅ TOTAL ROW
+    csv += `\nTOTAL,,${totalBoxes},,,\n`;
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
 
     const link = document.createElement("a");
@@ -240,7 +279,6 @@ function exportReadyToExcel() {
 
     link.setAttribute("href", url);
     link.setAttribute("download", "Ready_To_Distribute.csv");
-    link.style.display = "none";
 
     document.body.appendChild(link);
     link.click();
@@ -248,6 +286,7 @@ function exportReadyToExcel() {
 }
 function moveToReadyFromInputs() {
 const emailOrComment = document.getElementById("readyEmailInput").value.trim();
+const company = document.getElementById("readyCompanyInput").value.trim();
     const orderNo = document.getElementById("readyOrderInput").value.trim().toUpperCase();
     const boxes = document.getElementById("readyBoxesInput").value.trim();
     const cbm = document.getElementById("readyCBMInput").value.trim();
@@ -258,7 +297,10 @@ const emailOrComment = document.getElementById("readyEmailInput").value.trim();
         alert("Please enter Boxes and CBM before saving");
         return;
     }
-
+if (!company) {
+    alert("Please select company");
+    return;
+}
     const ordersRef = ref(db, "orders");
 
     get(ordersRef).then(snapshot => {
@@ -273,6 +315,7 @@ const emailOrComment = document.getElementById("readyEmailInput").value.trim();
     readyToDistribute: true,
     status: "ready_to_distribute",
     boxes: Number(boxes),
+    company: company,
     cbm: Number(String(cbm).replace(",", ".")),
     emailOrComment: emailOrComment, // ✅ الجديد
     readyTime: new Date().toISOString(),
@@ -293,6 +336,7 @@ const emailOrComment = document.getElementById("readyEmailInput").value.trim();
                     const localOrder = allOrders.find(o => o.orderNo === orderNo);
 
                     if (localOrder) {
+                        localOrder.company = company;
                         localOrder.readyToDistribute = true;
                         localOrder.status = "ready_to_distribute";
                         localOrder.boxes = Number(boxes);
@@ -314,6 +358,7 @@ const emailOrComment = document.getElementById("readyEmailInput").value.trim();
     document.getElementById("readyBoxesInput").value = "";
     document.getElementById("readyCBMInput").value = "";
     document.getElementById("readyEmailInput").value = "";
+    document.getElementById("readyCompanyInput").value = "";
 }
 
 function showReadyToDistributeTab() {
@@ -397,7 +442,23 @@ height:fit-content;
                 style="width:100%;padding:10px;margin-bottom:10px;
                 border-radius:10px;border:1px solid #1f2937;
                 background:#020617;color:white" />
+<select id="readyCompanyInput"
+    style="
+        width:100%;
+        padding:10px;
+        margin-bottom:10px;
+        border-radius:10px;
+        border:1px solid #1f2937;
+        background:#020617;
+        color:white;
+    ">
+    
+    <option value="">Select Company</option>
+    <option value="LMD">LMD</option>
+    <option value="Wakilni">Wakilni</option>
+    <option value="Employee">Employee</option>
 
+</select>
             <input id="readyBoxesInput"
                 placeholder="Boxes Count"
                 type="number"
@@ -620,7 +681,7 @@ batchType: currentBatch.type
                 );
 
                 if (localOrder) {
-
+                    localOrder.company = company;
                     localOrder.status = "distributed";
                     localOrder.readyToDistribute = false;
 
@@ -730,52 +791,205 @@ function isDistributed(order) {
 function renderReadyOrders() {
 
     const container = document.getElementById("readyOrdersTable");
+let readyOrders = allOrders.filter(o =>
+    o.readyToDistribute ||
+    o.status === "ready_to_distribute" ||
+    o.status === "checked"
+);
 
-    const readyOrders = allOrders.filter(o =>
-        o.readyToDistribute || o.status === "ready_to_distribute"
+// STATUS FILTER (clean fix)
+if (selectedStatusFilter === "checked") {
+    readyOrders = readyOrders.filter(o => o.status === "checked");
+} 
+else if (selectedStatusFilter === "ready") {
+    readyOrders = readyOrders.filter(o => o.status === "ready_to_distribute");
+}else {
+    // ✅ ALL STATUS (NO FILTER)
+    readyOrders = readyOrders;
+}
+if (selectedCompanyFilter) {
+    readyOrders = readyOrders.filter(
+        o => o.company === selectedCompanyFilter
     );
+}
+if (!readyOrders.length) {
+    container.innerHTML = `
+        <div style="
+            padding:40px;
+            text-align:center;
+            color:#94a3b8;
+        ">
+            <h3>No orders found</h3>
 
-    if (!readyOrders.length) {
-        container.innerHTML = "<p>No ready orders</p>";
-        return;
-    }
+            <p>
+                No orders available for
+                <b>${selectedCompanyFilter || "selected filter"}</b>
+            </p>
 
+            <button
+                onclick="clearCompanyFilter()"
+                style="
+                    margin-top:15px;
+                    padding:10px 20px;
+                    background:#0ea5e9;
+                    border:none;
+                    border-radius:8px;
+                    color:white;
+                    font-weight:600;
+                    cursor:pointer;
+                "
+            >
+                🔄 Show All Orders
+            </button>
+        </div>
+    `;
+    return;
+}
 container.innerHTML = `
 <table class="ready-table" style="width:100%;border-collapse:collapse;text-align:center">
-    <tr>
-        <th></th> <!-- 🔥 جديد -->
-        <th>Order</th>
-        <th>Boxes</th>
-        <th>CBM</th>
-        <th>Note</th>
-        <th>Status</th>
-    </tr>
+<tr>
+    <th>
+        <input
+            type="checkbox"
+            id="selectAllReady"
+            onchange="toggleSelectAllReady(this)"
+        >
+    </th>
+    <th>Order</th>
+    <th>Boxes</th>
+    <th>CBM</th>
+    <th style="position:relative;">
+    <select
+        onchange="filterReadyByCompany(this.value)"
+        style="
+            width:100%;
+            background:transparent;
+            border:none;
+            color:#635d45;
+            font-weight:700;
+            text-align:center;
+            cursor:pointer;
+            outline:none;
+            appearance:none;
+            padding-right:20px;
+        "
+    >
+        <option value="">companny </option>
+        <option value="LMD">LMD</option>
+        <option value="Wakilni">Wakilni</option>
+        <option value="Employee">Employee</option>
+    </select>
 
+    <span style="
+        position:absolute;
+        right:8px;
+        top:50%;
+        transform:translateY(-50%);
+        pointer-events:none;
+        color:#64748b;
+    ">
+        ▼
+    </span>
+</th>
+    <th>Note</th>
+    <th>Status</th>
+<th>
+    Action
+    <div style="margin-top:5px;">
+        <select
+            onchange="setStatusFilter(this.value)"
+            style="
+                width:100%;
+                background:transparent;
+                border:none;
+            color:#635d45;
+                font-weight:700;
+                text-align:center;
+                cursor:pointer;
+                outline:none;
+                appearance:none;
+            "
+        >
+            <option value="">All Status</option>
+            <option value="checked">Checked</option>
+            <option value="ready">Ready</option>
+        </select>
+        <span style="
+        position:absolute;
+        right:8px;
+        top:50%;
+        transform:translateY(-50%);
+        pointer-events:none;
+        color:#64748b;
+    ">
+        ▼
+    </span>
+    </div>
+</th>
+</tr>
     ${readyOrders.map(o => `
         <tr>
             <td>
-                <input type="checkbox" 
-                    class="readyCheckbox" 
-                    value="${o.orderNo}">
+<input type="checkbox"
+    class="readyCheckbox"
+    value="${o.orderNo}"
+    onchange="updateSelectAllReady()">
             </td>
 
             <td>${o.orderNo}</td>
             <td>${o.boxes || 0}</td>
             <td>${o.cbm || 0}</td>
-
+<td style="font-weight:600;color:#facc15">
+    ${o.company || "-"}
+</td>
             <td style="font-size:12px;color:#38bdf8">
                 ${o.emailOrComment || "-"}
             </td>
 
-            <td style="color:#22c55e;font-weight:600">
-                Ready
-            </td>
+   <td style="
+    font-weight:700;
+    color:${o.status === "checked"
+        ? "#facc15"
+        : "#22c55e"};
+">
+    ${o.status === "checked"
+        ? "Checked"
+        : "Ready"}
+</td>
 
-            <td>
-                <button onclick="openReadyEditModal('${o.orderNo}', ${o.boxes || 0}, ${o.cbm || 0})">
-                    Edit
-                </button>
-            </td>
+      <td style="display:flex;gap:5px;justify-content:center">
+
+${o.status !== "checked" ? `
+<button
+    onclick="markOrderChecked('${o.orderNo}')"
+    style="
+        background:#facc15;
+        color:black;
+        border:none;
+        padding:6px 10px;
+        border-radius:6px;
+        cursor:pointer;
+        font-weight:700;
+    "
+>
+    ✓ Checked
+</button>
+` : `
+<span style="
+    color:#facc15;
+    font-weight:700;
+">
+    ✓ Checked
+</span>
+`}
+
+    <button
+        onclick="openReadyEditModal('${o.orderNo}', ${o.boxes || 0}, ${o.cbm || 0})"
+    >
+        Edit
+    </button>
+
+</td>
         </tr>
     `).join("")}
 </table>
@@ -977,4 +1191,111 @@ function addBatch() {
     saveSettings();
 
     showSettingsTab();
+}
+function toggleSelectAllReady(source) {
+
+    const checkboxes =
+        document.querySelectorAll(".readyCheckbox");
+
+    checkboxes.forEach(cb => {
+        cb.checked = source.checked;
+    });
+
+}
+
+function updateSelectAllReady() {
+
+    const all =
+        document.querySelectorAll(".readyCheckbox");
+
+    const checked =
+        document.querySelectorAll(".readyCheckbox:checked");
+
+    const selectAll =
+        document.getElementById("selectAllReady");
+
+    if (!selectAll) return;
+
+    selectAll.checked =
+        all.length > 0 &&
+        all.length === checked.length;
+
+}
+
+function filterReadyByCompany(company) {
+    selectedCompanyFilter = company;
+    renderReadyOrders();
+}
+function clearCompanyFilter() {
+
+    selectedCompanyFilter = "";
+    selectedStatusFilter = "";
+
+    const companyFilter =
+        document.getElementById("readyCompanyFilter");
+
+    if (companyFilter) {
+        companyFilter.value = "";
+    }
+const statusFilter =
+    document.querySelector('select[onchange="setStatusFilter(this.value)"]');
+
+if (statusFilter) {
+    statusFilter.value = "";
+}
+    // reset status UI buttons if needed
+    document.querySelectorAll(".status-btn").forEach(btn => {
+        btn.classList.remove("active");
+    });
+
+    renderReadyOrders();
+}
+function markOrderChecked(orderNo) {
+
+    const ordersRef = ref(db, "orders");
+
+    get(ordersRef).then(snapshot => {
+
+        snapshot.forEach(child => {
+
+            const order = child.val();
+
+            if (order.orderNo === orderNo) {
+
+update(ref(db, "orders/" + child.key), {
+    status: "checked",
+    readyToDistribute: true,   // 🔥 ADD THIS
+    history: [
+        ...(order.history || []),
+        {
+            action: "checked",
+            date: new Date().toISOString(),
+            by: "Checker"
+        }
+    ]
+}).then(() => {
+
+                    const localOrder = allOrders.find(
+                        o => o.orderNo === orderNo
+                    );
+
+if (localOrder) {
+    localOrder.status = "checked";
+    localOrder.readyToDistribute = true;
+}
+                    renderReadyOrders();
+                       listenToOrders();
+                });
+
+            }
+
+        });
+
+    });
+
+}
+
+function setStatusFilter(type) {
+    selectedStatusFilter = type;
+    renderReadyOrders();
 }
