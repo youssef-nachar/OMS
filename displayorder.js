@@ -47,26 +47,32 @@ function displayOrders(orders, title = "Order Details") {
         seen.add(key);
 
         // تحديد حالة الطلب  
-        let statusText = "";
+let statusText = "";
 
-        if (order.status === "canceled") {
-            statusText = "Canceled";
-        }
-        else if (order.status === "canceled_before_delivery") {
-            statusText = "Canceled Before Delivery";
-        }
+if (order.status === "canceled") {
+    statusText = "Canceled";
+}
+else if (order.status === "canceled_before_delivery") {
+    statusText = "Canceled Before Delivery";
+}
 else if (order.status === "distributed") {
     statusText = "Distributed";
 }
-        else if (order.status === "completed") {
-            statusText = "In-Packing";
-        }
-        else if (order.status === "partial") {
-            statusText = "Partial";
-        }
-        else {
-            statusText = "Pending";
-        }
+else if (order.status === "ready_to_distribute") {
+    statusText = "Ready to Distribute";
+}
+else if (order.status === "checked") {
+    statusText = "Checked";
+}
+else if (order.status === "completed") {
+    statusText = "In-Packing";
+}
+else if (order.status === "partial") {
+    statusText = "Partial";
+}
+else {
+    statusText = "Pending";
+}
         html += `  
         <tr>  
           <td>${order.orderNo}</td>  
