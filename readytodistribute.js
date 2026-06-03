@@ -1,3 +1,4 @@
+
 let selectedCompanyFilter = "";
 let selectedStatusFilter = "";
 let appSettings = {
