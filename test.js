@@ -16,6 +16,7 @@ let returnedOrders = new Set();
 let returnedOrdersMap = {};
 let localOrders = [];
 let currentReportType = "";
+let readyToReturnWarehouseFilter = "";
 function cleanOrderKey(orderNo) {
     return orderNo.replace(/#/g, "");
 }
@@ -1002,13 +1003,19 @@ const query = this.value.toLowerCase().trim();
 });
 
 function getOrderWarehouse(orderNo) {
-const order = allOrders.find(o => o.orderNo.toUpperCase() === orderNo.toUpperCase());
-if (!order) return null;
 
-// إذا الطلب من أكثر من مستودع، نرجع أول مستودع غير PACKING  
-const originalWH = order.warehouses.find(w => w.base.toUpperCase() !== "PACKING STATION");  
-return originalWH ? originalWH.base : "";
+    const order = allOrders.find(
+        o => o.orderNo.toUpperCase() === orderNo.toUpperCase()
+    );
 
+    if (!order) return "";
+
+    return order.warehouses
+        .filter(w =>
+            w.base.toUpperCase() !== "PACKING STATION"
+        )
+        .map(w => w.base)
+        .join(", ");
 }
 
 // إغلاق عند الضغط خارجها
@@ -1359,58 +1366,64 @@ document.querySelector(".sales-order")
 renderReturnedOrders();  
 
 // 🔥 focus على input  
-setTimeout(() => {  
+setTimeout(() => {
 
-    const input =  
-        document.getElementById("returnOrderInput");  
+    const input =
+        document.getElementById("returnOrderInput");
 
-    if (input) input.focus();  
+    if (input) input.focus();
 
 }, 200);
 
 }
+// ===============================
+// AUTO ADD TO READY TO RETURN
+// ===============================
 document.getElementById("returnOrderInput")
-.addEventListener("keydown", function(e) {
+.addEventListener("input", function () {
 
-if (e.key !== "Enter") return;  
+    const orderNo = this.value
+        .trim()
+        .toUpperCase();
 
-const orderNo = this.value  
-    .trim()  
-    .toUpperCase();  
+    // لو الحقل فاضي
+    if (!orderNo) return;
 
-if (!orderNo) return;  
+    const pattern = /^#?M\d{5}$/i;
+    if (!pattern.test(orderNo)) return;
 
-const order = allOrders.find(o =>  
-    o.orderNo.toUpperCase() === orderNo  
-);  
+    const cleanOrderNo = orderNo.toUpperCase();
 
-if (!order) {  
+    const order = allOrders.find(o =>
+        o.orderNo.toUpperCase() === cleanOrderNo
+    );
 
-    alert("Order not found");  
-    return;  
-}  
-const warehouse =  
-    getOrderWarehouse(orderNo);
+    if (!order) {
+        return;
+    }
 
-document.getElementById("returnOrderInput")
-// 🔥 تحديده Returned  
-readyToReturnOrders[orderNo] = {
-    orderNo,
-    warehouse,
-    date: new Date().toISOString().slice(0, 10)
-};
-saveReturnedOrders();
+    // منع التكرار
+    if (readyToReturnOrders[cleanOrderNo]) {
+        this.value = "";
+        return;
+    }
 
-renderReturnedOrders();
+    const warehouse = getOrderWarehouse(cleanOrderNo);
 
-this.value = "";
+    // 🔥 إضافة مباشرة إلى Ready To Return
+    readyToReturnOrders[cleanOrderNo] = {
+        orderNo: cleanOrderNo,
+        warehouse,
+        date: new Date().toISOString().slice(0, 10)
+    };
 
-// تحديث الواجهة  
-updateDashboard();  
+    saveReturnedOrders();
 
-renderReturnedOrders();  
+    renderReturnedOrders();
+    updateDashboard();
 
-this.value = "";
+    // تنظيف الحقل بعد الإدخال
+    this.value = "";
 
 });
 function renderReturnedOrders() {
@@ -1418,8 +1431,24 @@ function renderReturnedOrders() {
     const container =
         document.getElementById("returnedOrdersList");
 
-    const orders = Object.keys(readyToReturnOrders);
+    let orders = Object.keys(readyToReturnOrders);
 
+    // استخراج المستودعات
+    const warehouses = [
+        ...new Set(
+            orders
+                .map(o => readyToReturnOrders[o]?.warehouse)
+                .filter(Boolean)
+        )
+    ].sort();
+
+    // تطبيق الفلتر
+    if (readyToReturnWarehouseFilter) {
+        orders = orders.filter(orderNo =>
+            readyToReturnOrders[orderNo]?.warehouse
+    ?.includes(readyToReturnWarehouseFilter)
+        );
+    }
     if (!orders.length) {
 
         container.innerHTML =
@@ -1429,64 +1458,314 @@ function renderReturnedOrders() {
     }
 
     container.innerHTML = `
-        <table>
-            <tr>
-                <th></th>
-                <th>Order</th>
-                <th>Warehouse</th>
-                <th>Date</th>
-                <th>Status</th>
-            </tr>
 
-            ${orders.map(orderNo => {
+<div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+    gap:15px;
+    flex-wrap:wrap;
+">
 
-                const data =
-                    readyToReturnOrders[orderNo];
+    <div style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+    ">
+        <span style="
+            color:#94a3b8;
+            font-weight:600;
+            font-size:14px;
+        ">
+            Filter Warehouse
+        </span>
 
-                return `
-                    <tr>
-                        <td>
-                            <input
-                                type="checkbox"
-                                class="return-checkbox"
-                                value="${orderNo}"
-                            >
-                        </td>
+        <select
+            onchange="filterReadyToReturnWarehouse(this.value)"
+            style="
+                background:#0f172a;
+                color:white;
+                border:1px solid #334155;
+                padding:10px 14px;
+                border-radius:10px;
+                min-width:220px;
+                font-size:14px;
+                outline:none;
+            "
+        >
+            <option value="">
+                All Warehouses
+            </option>
 
-                        <td>${orderNo}</td>
-                        <td>${data.warehouse}</td>
-                        <td>${data.date}</td>
-                        <td>
-                            <span style="
-                                background:#f59e0b;
-                                color:white;
-                                padding:4px 8px;
-                                border-radius:6px;
-                            ">
-                                Ready To Return
-                            </span>
-                        </td>
-                    </tr>
-                `;
-            }).join("")}
-        </table>
+            ${warehouses.map(wh => `
+                <option
+                    value="${wh}"
+                    ${readyToReturnWarehouseFilter === wh ? "selected" : ""}
+                >
+                    ${wh}
+                </option>
+            `).join("")}
+        </select>
+    </div>
 
-        <div style="margin-top:15px">
-            <button
-                onclick="confirmReturnOrders()"
+    <div style="
+        background:#1e293b;
+        color:#22c55e;
+        padding:10px 16px;
+        border-radius:10px;
+        font-weight:700;
+        font-size:14px;
+    ">
+        ${orders.length} Orders
+    </div>
+
+</div>
+
+<div style="
+    overflow:auto;
+    border-radius:14px;
+    border:1px solid #1e293b;
+">
+
+<table style="
+    width:100%;
+    border-collapse:collapse;
+">
+
+<tr style="
+    background:#020617;
+    position:sticky;
+    top:0;
+">
+    <th style="padding:14px">✓</th>
+    <th style="padding:14px">Order</th>
+    <th style="padding:14px">Warehouse</th>
+    <th style="padding:14px">Date</th>
+    <th style="padding:14px">Status</th>
+    <th style="padding:14px">Edit</th>
+</tr>
+
+${orders.map(orderNo => {
+
+    const data = readyToReturnOrders[orderNo];
+
+    return `
+
+    <tr
+        style="
+            border-bottom:1px solid #1e293b;
+            transition:.2s;
+        "
+        onmouseover="this.style.background='#111827'"
+        onmouseout="this.style.background='transparent'"
+    >
+
+        <td style="text-align:center;padding:12px">
+            <input
+                type="checkbox"
+                class="return-checkbox"
+                value="${orderNo}"
                 style="
-                    background:#dc2626;
-                    color:white;
-                    border:none;
-                    padding:10px 20px;
-                    border-radius:8px;
+                    width:18px;
+                    height:18px;
                     cursor:pointer;
                 "
             >
-                Return Selected
+        </td>
+
+        <td style="
+            padding:12px;
+            font-weight:700;
+            color:#38bdf8;
+        ">
+            ${orderNo}
+        </td>
+
+        <td style="padding:12px">
+
+            <span style="
+                background:#1e293b;
+                color:#e2e8f0;
+                padding:6px 10px;
+                border-radius:999px;
+                font-size:12px;
+                font-weight:600;
+            ">
+                ${data.warehouse}
+            </span>
+
+        </td>
+
+        <td style="
+            padding:12px;
+            color:#94a3b8;
+        ">
+            ${data.date}
+        </td>
+
+        <td style="padding:12px">
+
+            <span style="
+                background:linear-gradient(
+                    135deg,
+                    #f59e0b,
+                    #ea580c
+                );
+                color:white;
+                padding:6px 12px;
+                border-radius:999px;
+                font-size:12px;
+                font-weight:700;
+                box-shadow:0 0 10px rgba(245,158,11,.3);
+            ">
+                Ready To Return
+            </span>
+
+        </td>
+
+        <td style="padding:12px">
+
+            <button
+                onclick="editReadyToReturnOrder('${orderNo}')"
+                style="
+                    background:linear-gradient(
+                        135deg,
+                        #2563eb,
+                        #3b82f6
+                    );
+                    color:white;
+                    border:none;
+                    padding:8px 14px;
+                    border-radius:8px;
+                    cursor:pointer;
+                    font-weight:600;
+                "
+            >
+                ✏️ Edit
             </button>
-        </div>
+
+        </td>
+
+    </tr>
+
     `;
+}).join("")}
+
+</table>
+
+</div>
+
+<div style="margin-top:15px; display:flex; gap:10px">
+
+    <button
+        onclick="selectAllReturnOrders()"
+        style="
+            background:#22c55e;
+            color:white;
+            border:none;
+            padding:10px 15px;
+            border-radius:8px;
+            cursor:pointer;
+        "
+    >
+        Select All
+    </button>
+
+    <button
+        onclick="clearAllReturnSelection()"
+        style="
+            background:#6b7280;
+            color:white;
+            border:none;
+            padding:10px 15px;
+            border-radius:8px;
+            cursor:pointer;
+        "
+    >
+        Clear
+    </button>
+
+    <button
+        onclick="confirmReturnOrders()"
+        style="
+            background:#dc2626;
+            color:white;
+            border:none;
+            padding:10px 20px;
+            border-radius:8px;
+            cursor:pointer;
+        "
+    >
+        Return Selected
+    </button>
+
+</div>
+
+`;
+}
+function selectAllReturnOrders() {
+    document.querySelectorAll(".return-checkbox")
+        .forEach(cb => cb.checked = true);
+}
+
+function clearAllReturnSelection() {
+    document.querySelectorAll(".return-checkbox")
+        .forEach(cb => cb.checked = false);
+}
+function filterReadyToReturnWarehouse(warehouse) {
+
+    readyToReturnWarehouseFilter = warehouse;
+
+    renderReturnedOrders();
+}
+function editReadyToReturnOrder(oldOrderNo) {
+
+    const newOrderNo = prompt(
+        "Enter Correct Order Number",
+        oldOrderNo
+    );
+
+    if (!newOrderNo) return;
+
+    const cleanNewOrder =
+        newOrderNo.trim().toUpperCase();
+
+    if (readyToReturnOrders[cleanNewOrder]) {
+        alert("Order already exists");
+        return;
+    }
+
+    // جلب الطلب الجديد من النظام
+    const order = allOrders.find(
+        o => o.orderNo.toUpperCase() === cleanNewOrder
+    );
+
+    if (!order) {
+        alert("Order not found");
+        return;
+    }
+
+    // تحديد المستودع الصحيح للطلب الجديد
+    const warehouse =
+        getOrderWarehouse(cleanNewOrder);
+
+    const oldData =
+        readyToReturnOrders[oldOrderNo];
+
+    delete readyToReturnOrders[oldOrderNo];
+
+    readyToReturnOrders[cleanNewOrder] = {
+        orderNo: cleanNewOrder,
+        warehouse: warehouse,
+        date: oldData.date
+    };
+
+    saveReturnedOrders();
+
+    renderReturnedOrders();
+
+    alert("Order Updated Successfully");
 }
 function confirmReturnOrders() {
 
