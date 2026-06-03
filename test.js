@@ -11,6 +11,7 @@ let showOnlyPartial = false;
 let selectedDateFilter = null;
 let showOnlyDistributed = false;
 let selectedWarehouseFilter = "";
+let readyToReturnOrders = {};
 let returnedOrders = new Set();
 let returnedOrdersMap = {};
 let localOrders = [];
@@ -1377,24 +1378,21 @@ if (!order) {
     alert("Order not found");  
     return;  
 }  
-
-// 🔥 تحديده Returned  
-returnedOrders.add(orderNo);  
-
-// 🔥 جلب المستودع تلقائياً  
 const warehouse =  
     getOrderWarehouse(orderNo);
 
 document.getElementById("returnOrderInput")
-returnedOrdersMap[orderNo] = {
-warehouse,
-date: new Date()
-.toISOString()
-.slice(0, 10)
+// 🔥 تحديده Returned  
+readyToReturnOrders[orderNo] = {
+    warehouse,
+    date: new Date().toISOString().slice(0, 10)
 };
+
 saveReturnedOrders();
-// تحديث الحالة
-order.status = "returned";
+
+renderReturnedOrders();
+
+this.value = "";
 
 // تحديث الواجهة  
 updateDashboard();  
@@ -1406,44 +1404,128 @@ this.value = "";
 });
 function renderReturnedOrders() {
 
-const container =  
-    document.getElementById("returnedOrdersList");  
+    const container =
+        document.getElementById("returnedOrdersList");
 
-const orders =  
-    Object.keys(returnedOrdersMap);  
+    const orders = Object.keys(readyToReturnOrders);
 
-if (!orders.length) {  
+    if (!orders.length) {
 
-    container.innerHTML =  
-        "<p>No returned orders</p>";  
+        container.innerHTML =
+            "<p>No Ready To Return Orders</p>";
 
-    return;  
-}  
+        return;
+    }
 
-container.innerHTML = `  
-    <table>  
-        <tr>  
-            <th>Order</th>  
-            <th>Warehouse</th>  
-            <th>Date</th>  
-        </tr>  
+    container.innerHTML = `
+        <table>
+            <tr>
+                <th></th>
+                <th>Order</th>
+                <th>Warehouse</th>
+                <th>Date</th>
+                <th>Status</th>
+            </tr>
 
-        ${orders.map(orderNo => {  
+            ${orders.map(orderNo => {
 
-            const data =  
-                returnedOrdersMap[orderNo];  
+                const data =
+                    readyToReturnOrders[orderNo];
 
-            return `  
-                <tr>  
-                    <td>${orderNo}</td>  
-                    <td>${data.warehouse}</td>  
-                    <td>${data.date}</td>  
-                </tr>  
-            `;  
-        }).join("")}  
-    </table>  
-`;
+                return `
+                    <tr>
+                        <td>
+                            <input
+                                type="checkbox"
+                                class="return-checkbox"
+                                value="${orderNo}"
+                            >
+                        </td>
 
+                        <td>${orderNo}</td>
+                        <td>${data.warehouse}</td>
+                        <td>${data.date}</td>
+                        <td>
+                            <span style="
+                                background:#f59e0b;
+                                color:white;
+                                padding:4px 8px;
+                                border-radius:6px;
+                            ">
+                                Ready To Return
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join("")}
+        </table>
+
+        <div style="margin-top:15px">
+            <button
+                onclick="confirmReturnOrders()"
+                style="
+                    background:#dc2626;
+                    color:white;
+                    border:none;
+                    padding:10px 20px;
+                    border-radius:8px;
+                    cursor:pointer;
+                "
+            >
+                Return Selected
+            </button>
+        </div>
+    `;
+}
+function confirmReturnOrders() {
+
+    const selected = [
+        ...document.querySelectorAll(
+            ".return-checkbox:checked"
+        )
+    ];
+
+    if (!selected.length) {
+
+        alert("Select orders first");
+        return;
+    }
+
+    selected.forEach(cb => {
+
+        const orderNo = cb.value;
+
+        const data =
+            readyToReturnOrders[orderNo];
+
+        returnedOrders.add(orderNo);
+
+        returnedOrdersMap[orderNo] = {
+            ...data,
+            returnedDate:
+                new Date()
+                .toISOString()
+                .slice(0,10)
+        };
+
+        const order = allOrders.find(
+            o => o.orderNo === orderNo
+        );
+
+        if (order) {
+            order.status = "returned";
+        }
+
+        delete readyToReturnOrders[orderNo];
+    });
+
+    saveReturnedOrders();
+
+    updateDashboard();
+
+    renderReturnedOrders();
+
+    alert("Orders Returned Successfully");
 }
 const savedReturnedOrders =
 JSON.parse(
@@ -1456,18 +1538,34 @@ returnedOrdersMap =
 JSON.parse(
 localStorage.getItem("returnedOrdersMap") || "{}"
 );
+readyToReturnOrders =
+JSON.parse(
+    localStorage.getItem(
+        "readyToReturnOrders"
+    ) || "{}"
+);
 function saveReturnedOrders() {
 
-localStorage.setItem(  
-    "returnedOrders",  
-    JSON.stringify([...returnedOrders])  
-);  
+    localStorage.setItem(
+        "readyToReturnOrders",
+        JSON.stringify(
+            readyToReturnOrders
+        )
+    );
 
-localStorage.setItem(  
-    "returnedOrdersMap",  
-    JSON.stringify(returnedOrdersMap)  
-);
+    localStorage.setItem(
+        "returnedOrders",
+        JSON.stringify(
+            [...returnedOrders]
+        )
+    );
 
+    localStorage.setItem(
+        "returnedOrdersMap",
+        JSON.stringify(
+            returnedOrdersMap
+        )
+    );
 }
 
 function toggleWarehouseMenu(event) {
