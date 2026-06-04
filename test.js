@@ -1447,29 +1447,33 @@ function renderReturnedOrders() {
     let orders = Object.keys(readyToReturnOrders);
 
     // استخراج المستودعات
-    const warehouses = [
-        ...new Set(
-            orders
-                .map(o => readyToReturnOrders[o]?.warehouse)
-                .filter(Boolean)
-        )
-    ].sort();
+const warehouses = [
+    "PHARMA",
+    "RETAIL",
+    "P&C",
+    "LOREAL LUX",
+    "BEESLINE"
+];
 
     // تطبيق الفلتر
-    if (readyToReturnWarehouseFilter) {
-        orders = orders.filter(orderNo =>
-            readyToReturnOrders[orderNo]?.warehouse
-    ?.includes(readyToReturnWarehouseFilter)
-        );
-    }
-    if (!orders.length) {
+// تطبيق الفلتر
+if (readyToReturnWarehouseFilter) {
 
-        container.innerHTML =
-            "<p>No Ready To Return Orders</p>";
+    orders = orders.filter(orderNo => {
 
-        return;
-    }
+        const warehouse =
+            (readyToReturnOrders[orderNo]?.warehouse || "")
+            .toUpperCase()
+            .replace(/'/g, "");
 
+        const filter =
+            readyToReturnWarehouseFilter
+            .toUpperCase()
+            .replace(/'/g, "");
+
+        return warehouse.includes(filter);
+    });
+}
     container.innerHTML = `
 
 <div style="
@@ -1560,7 +1564,19 @@ function renderReturnedOrders() {
     <th style="padding:14px">Edit</th>
 </tr>
 
-${orders.map(orderNo => {
+${orders.length === 0
+? `
+<tr>
+    <td colspan="7" style="
+        text-align:center;
+        padding:30px;
+        color:#94a3b8;
+    ">
+        No Ready To Return Orders
+    </td>
+</tr>
+`
+: orders.map(orderNo => {
 
     const data = readyToReturnOrders[orderNo];
 
@@ -1715,7 +1731,19 @@ ${orders.map(orderNo => {
     >
         Return Selected
     </button>
-
+<button
+    onclick="exportSelectedReadyToReturn()"
+    style="
+        background:#16a34a;
+        color:white;
+        border:none;
+        padding:10px 20px;
+        border-radius:8px;
+        cursor:pointer;
+    "
+>
+    Export To Excel
+</button>
 </div>
 
 `;
@@ -1986,7 +2014,46 @@ function saveReturnedOrders() {
 
     });
 }
+function exportSelectedReadyToReturn() {
 
+    const selected = [
+        ...document.querySelectorAll(".return-checkbox:checked")
+    ];
+
+    if (!selected.length) {
+        alert("Select orders first");
+        return;
+    }
+
+    const data = selected.map(cb => {
+
+        const orderNo = cb.value;
+        const order = readyToReturnOrders[orderNo];
+
+        return {
+            "Order No": order.orderNo,
+            "Warehouse": order.warehouse,
+            "Date": order.date,
+            "Comment": order.comment || "",
+            "Status": "Ready To Return"
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "Ready To Return"
+    );
+
+    XLSX.writeFile(
+        workbook,
+        `Ready_To_Return_${new Date().toISOString().slice(0,10)}.xlsx`
+    );
+}
 function toggleWarehouseMenu(event) {
 
 event.preventDefault();  
