@@ -802,6 +802,68 @@
 </div>
 
 </div>
+<div id="editReturnModal" class="hidden">
+
+    <div class="edit-return-box">
+
+        <div class="edit-header">
+
+            <div>
+                <div class="edit-title">
+                    ✏️ Edit Return Order
+                </div>
+
+                <div class="edit-subtitle">
+                    Update order number and add notes
+                </div>
+            </div>
+
+            <button
+                class="close-edit"
+                onclick="closeEditReturnModal()"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <label>Order Number</label>
+
+        <input
+            id="editReturnOrderNo"
+            type="text"
+        >
+
+        <br><br>
+
+        <label>Comment</label>
+
+        <textarea
+            id="editReturnComment"
+            placeholder="Add notes about this return..."
+        ></textarea>
+
+        <div class="edit-footer">
+
+            <button
+                class="cancel-btn"
+                onclick="closeEditReturnModal()"
+            >
+                Cancel
+            </button>
+
+            <button
+                class="save-btn"
+                onclick="saveEditReturnOrder()"
+            >
+                Save Changes
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
             <div id="teamNotesTab" class="hidden">
 
                 <h2 style="margin-bottom:15px"> Team Notes</h2>
