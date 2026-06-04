@@ -558,24 +558,17 @@ const todayOrders = applyFilters();
 
 let todayFiltered = todayOrders;  
 
-if (type === "canceled") {  
+if (type === "canceled") {
 
-    const CANCELED_START_DATE = "2026-02-02";  
+    todayFiltered = applyFilters().filter(o => {
 
-    todayFiltered = allOrders.filter(o => {  
+        return (
+            o.status === "canceled" ||
+            o.status === "canceled_before_delivery"
+        );
 
-        if (  
-            o.status !== "canceled" &&  
-            o.status !== "canceled_before_delivery"  
-        ) return false;  
-
-        const dateToCheck = getEffectiveDate(o);  
-        if (!dateToCheck) return false;  
-
-        return dateToCheck >= CANCELED_START_DATE;  
-    });  
+    });
 }
-
 if (type === "returned") {
 todayFiltered = todayOrders.filter(o =>
 o.status === "returned"
@@ -1078,19 +1071,10 @@ const accumulatedOrders = allOrders.filter(o => {
 // ================= TODAY =================  
 const CANCELED_START_DATE = "2026-02-02";  
 
-const canceledToday = allOrders.filter(o => {  
-
-    if (  
-        o.status !== "canceled" &&  
-        o.status !== "canceled_before_delivery"  
-    ) return false;  
-
-    const dateToCheck = getEffectiveDate(o);  
-    if (!dateToCheck) return false;  
-
-    return dateToCheck >= CANCELED_START_DATE;  
-});
-
+const canceledToday = todayOrders.filter(o =>
+    o.status === "canceled" ||
+    o.status === "canceled_before_delivery"
+);
 const returnedToday = todayOrders.filter(o =>
 o.status === "returned"
 );
