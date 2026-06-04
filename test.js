@@ -1789,21 +1789,28 @@ function saveEditReturnOrder() {
         .value
         .trim();
 
-    const oldData =
-        readyToReturnOrders[editingReturnOrder];
+const oldData =
+    readyToReturnOrders[editingReturnOrder];
 
-    // جلب المستودع الجديد بناءً على رقم الطلب الجديد
-    const warehouse = getOrderWarehouse(newOrderNo);
+const order = allOrders.find(
+    o => o.orderNo.toUpperCase() === newOrderNo.toUpperCase()
+);
 
-    delete readyToReturnOrders[editingReturnOrder];
+const warehouse = order
+    ? order.warehouses
+        .filter(w => w.base.toUpperCase() !== "PACKING STATION")
+        .map(w => w.base)
+        .join(", ")
+    : oldData.warehouse;
 
-    readyToReturnOrders[newOrderNo] = {
-        ...oldData,
-        orderNo: newOrderNo,
-        warehouse: warehouse,
-        comment: comment
-    };
+delete readyToReturnOrders[editingReturnOrder];
 
+readyToReturnOrders[newOrderNo] = {
+    ...oldData,
+    orderNo: newOrderNo,
+    warehouse,
+    comment
+};
     saveReturnedOrders();
     renderReturnedOrders();
     closeEditReturnModal();
