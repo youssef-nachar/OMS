@@ -522,20 +522,7 @@ transition:.3s;
 ">
 🚚 Add To Ready
 </button>
-            <button onclick="exportReadyToExcel()"
-                style="
-                    width:100%;
-                    padding:12px;
-                    margin-top:10px;
-                    background:#0ea5e9;
-                    border:none;
-                    border-radius:10px;
-                    font-weight:600;
-                    color:white;
-                    cursor:pointer;
-                ">
-                ⬇ Export to Excel
-            </button>
+
 <button onclick="distributeSelectedOrders()"
 style="
 width:100%;
@@ -599,7 +586,20 @@ box-shadow:
                     📦 Ready Orders
                 </h3>
             </div>
-
+            <button onclick="exportReadyToExcel()"
+                style="
+                    width:20%;
+                    padding:12px;
+                    margin-top:10px;
+                    background:#0ea5e9;
+                    border:none;
+                    border-radius:10px;
+                    font-weight:600;
+                    color:white;
+                    cursor:pointer;
+                ">
+                ⬇ Export to Excel
+            </button>
             <div id="readyOrdersTable"></div>
 
         </div>
