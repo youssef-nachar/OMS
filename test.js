@@ -1334,6 +1334,7 @@ return fetch(distributionSheetURL + "&t=" + Date.now(), {
 
 // }
 function showReturnTab() {
+    document.getElementById("aboutTab").classList.add("hidden");
 
 document.getElementById("dashboardHeader")  
     .style.display = "none";  
