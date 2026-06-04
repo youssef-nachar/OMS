@@ -887,6 +887,107 @@
     </div>
 
 </div>
+<div id="returnConfirmModal" class="hidden" style="
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.75);
+    backdrop-filter:blur(6px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:99999;
+">
+
+    <div style="
+        width:420px;
+        max-width:90%;
+        background:#0f172a;
+        border:1px solid #334155;
+        border-radius:20px;
+        overflow:hidden;
+        box-shadow:0 25px 60px rgba(0,0,0,.5);
+    ">
+
+        <div style="
+            padding:25px;
+            text-align:center;
+        ">
+
+            <div style="
+                width:70px;
+                height:70px;
+                margin:auto;
+                border-radius:50%;
+                background:rgba(239,68,68,.15);
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:32px;
+                margin-bottom:15px;
+            ">
+                ↩️
+            </div>
+
+            <h2 style="
+                color:white;
+                margin:0 0 10px;
+            ">
+                Confirm Return
+            </h2>
+
+            <p id="returnConfirmText" style="
+                color:#94a3b8;
+                line-height:1.6;
+                margin:0;
+            ">
+            </p>
+
+        </div>
+
+        <div style="
+            padding:20px;
+            display:flex;
+            gap:10px;
+            border-top:1px solid #1e293b;
+        ">
+
+            <button
+                onclick="closeReturnConfirmModal()"
+                style="
+                    flex:1;
+                    padding:12px;
+                    background:#1e293b;
+                    color:white;
+                    border:none;
+                    border-radius:10px;
+                    cursor:pointer;
+                    font-weight:600;
+                "
+            >
+                Cancel
+            </button>
+
+            <button
+                onclick="executeReturnOrders()"
+                style="
+                    flex:1;
+                    padding:12px;
+                    background:linear-gradient(135deg,#dc2626,#ef4444);
+                    color:white;
+                    border:none;
+                    border-radius:10px;
+                    cursor:pointer;
+                    font-weight:700;
+                "
+            >
+                Confirm Return
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
             <div id="teamNotesTab" class="hidden">
 
                 <h2 style="margin-bottom:15px"> Team Notes</h2>
