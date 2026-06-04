@@ -802,6 +802,7 @@
 </div>
 
 </div>
+
 <div id="editReturnModal" class="hidden">
 
     <div class="edit-return-box">
@@ -810,7 +811,7 @@
 
             <div>
                 <div class="edit-title">
-                    ✏️ Edit Return Order
+                    Return Order
                 </div>
 
                 <div class="edit-subtitle">
@@ -818,12 +819,34 @@
                 </div>
             </div>
 
-            <button
-                class="close-edit"
-                onclick="closeEditReturnModal()"
-            >
-                ✕
-            </button>
+<button
+    class="close-edit"
+    onclick="closeEditReturnModal(event)"
+    title="Close"
+>
+
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+>
+    <path
+        d="M18 6L6 18"
+        stroke="currentColor"
+        stroke-width="2.4"
+        stroke-linecap="round"
+    />
+    <path
+        d="M6 6L18 18"
+        stroke="currentColor"
+        stroke-width="2.4"
+        stroke-linecap="round"
+    />
+</svg>
+
+</button>
 
         </div>
 
