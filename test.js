@@ -1079,6 +1079,24 @@ const returnedToday = todayOrders.filter(o =>
 o.status === "returned"
 );
 const distributedToday = todayOrders.filter(isDistributed);
+const distributedByCompany = {
+    LMD: 0,
+    Employee: 0,
+    Wakilni: 0
+};
+
+distributedToday.forEach(order => {
+    const company =
+        distributedOrdersMap[order.orderNo]?.company?.trim().toLowerCase();
+
+    if (company === "lmd") {
+        distributedByCompany.LMD++;
+    } else if (company === "employee") {
+        distributedByCompany.Employee++;
+    } else if (company === "wakilni") {
+        distributedByCompany.Wakilni++;
+    }
+});
 const readyToday = todayOrders.filter(o =>
 o.status === "ready_to_distribute"
 );
@@ -1109,6 +1127,16 @@ o.status === "ready_to_distribute"
 updateKPINumber("returned", returnedToday.length);
 updateKPINumber("total", todayOrders.length);
 updateKPINumber("distributed", distributedToday.length);
+
+const distributedCard = document.getElementById("distributed");
+const subNumber = distributedCard
+    .closest(".kpi")
+    .querySelector(".sub-number");
+
+subNumber.textContent =
+    `LMD:${distributedByCompany.LMD}, ` +
+    `Employee:${distributedByCompany.Employee}, ` +
+    `Wakilni:${distributedByCompany.Wakilni}`;
 updateKPINumber("ready", readyToday.length);
 updateKPINumber("canceled", canceledToday.length);
 
