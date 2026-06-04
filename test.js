@@ -1690,7 +1690,7 @@ ${orders.map(orderNo => {
     </button>
 
     <button
-        onclick="confirmReturnOrders()"
+        onclick="openReturnEmailModal()"
         style="
             background:#dc2626;
             color:white;
@@ -1711,7 +1711,34 @@ function selectAllReturnOrders() {
     document.querySelectorAll(".return-checkbox")
         .forEach(cb => cb.checked = true);
 }
+function openReturnEmailModal() {
 
+    const selected = document.querySelectorAll(
+        ".return-checkbox:checked"
+    );
+
+    if (!selected.length) {
+
+        alert("Select orders first");
+        return;
+    }
+
+    document.getElementById(
+        "selectedOrdersCount"
+    ).innerHTML =
+    `Selected Orders: <b>${selected.length}</b>`;
+
+    document.getElementById(
+        "returnEmailModal"
+    ).classList.remove("hidden");
+}
+
+function closeReturnEmailModal() {
+
+    document.getElementById(
+        "returnEmailModal"
+    ).classList.add("hidden");
+}
 function clearAllReturnSelection() {
     document.querySelectorAll(".return-checkbox")
         .forEach(cb => cb.checked = false);
@@ -1752,37 +1779,33 @@ function closeEditReturnModal() {
 function saveEditReturnOrder() {
 
     const newOrderNo =
-        document.getElementById(
-            "editReturnOrderNo"
-        ).value
+        document.getElementById("editReturnOrderNo")
+        .value
         .trim()
         .toUpperCase();
 
     const comment =
-        document.getElementById(
-            "editReturnComment"
-        ).value
+        document.getElementById("editReturnComment")
+        .value
         .trim();
 
     const oldData =
-        readyToReturnOrders[
-            editingReturnOrder
-        ];
+        readyToReturnOrders[editingReturnOrder];
 
-    delete readyToReturnOrders[
-        editingReturnOrder
-    ];
+    // جلب المستودع الجديد بناءً على رقم الطلب الجديد
+    const warehouse = getOrderWarehouse(newOrderNo);
+
+    delete readyToReturnOrders[editingReturnOrder];
 
     readyToReturnOrders[newOrderNo] = {
         ...oldData,
         orderNo: newOrderNo,
+        warehouse: warehouse,
         comment: comment
     };
 
     saveReturnedOrders();
-
     renderReturnedOrders();
-
     closeEditReturnModal();
 }
 function confirmReturnOrders() {
