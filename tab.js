@@ -10,6 +10,7 @@ document.getElementById("reportConfigPage").classList.add("hidden")
     document.getElementById("readyTab").classList.add("hidden");
     document.getElementById("returnTab").classList.add("hidden");
     document.getElementById("aboutTab").classList.add("hidden");
+    document.getElementById("settingsTab").classList.add("hidden");
 
     // إظهار عناصر الداشبورد الرئيسية
     document.querySelector(".kpis").classList.remove("hidden");
