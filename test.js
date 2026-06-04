@@ -17,6 +17,7 @@ let returnedOrdersMap = {};
 let localOrders = [];
 let currentReportType = "";
 let readyToReturnWarehouseFilter = "";
+let pendingReturnOrders = [];
 function cleanOrderKey(orderNo) {
     return orderNo.replace(/#/g, "");
 }
@@ -1562,6 +1563,7 @@ if (readyToReturnWarehouseFilter) {
     <th style="padding:14px">Status</th>
     <th style="padding:14px">Comment</th>
     <th style="padding:14px">Edit</th>
+<th style="padding:14px">Remove</th>
 </tr>
 
 ${orders.length === 0
@@ -1676,7 +1678,24 @@ ${orders.length === 0
             >
                 ✏️ Edit
             </button>
+<td style="padding:12px">
 
+    <button
+        onclick="removeReadyToReturnOrder('${orderNo}')"
+        style="
+            background:#dc2626;
+            color:white;
+            border:none;
+            padding:8px 14px;
+            border-radius:8px;
+            cursor:pointer;
+            font-weight:600;
+        "
+    >
+        🗑 Remove
+    </button>
+
+</td>
         </td>
 
     </tr>
@@ -1718,19 +1737,19 @@ ${orders.length === 0
         Clear
     </button>
 
-    <button
-        onclick="openReturnEmailModal()"
-        style="
-            background:#dc2626;
-            color:white;
-            border:none;
-            padding:10px 20px;
-            border-radius:8px;
-            cursor:pointer;
-        "
-    >
-        Return Selected
-    </button>
+<button
+    onclick="confirmReturnOrders()"
+    style="
+        background:#dc2626;
+        color:white;
+        border:none;
+        padding:10px 20px;
+        border-radius:8px;
+        cursor:pointer;
+    "
+>
+    Return Selected
+</button>
 <button
     onclick="exportSelectedReadyToReturn()"
     style="
@@ -1744,6 +1763,19 @@ ${orders.length === 0
 >
     Export To Excel
 </button>
+<button
+    onclick="removeSelectedReadyToReturn()"
+    style="
+        background:#b91c1c;
+        color:white;
+        border:none;
+        padding:10px 20px;
+        border-radius:8px;
+        cursor:pointer;
+    "
+>
+    Remove Selected
+</button>
 </div>
 
 `;
@@ -1751,6 +1783,37 @@ ${orders.length === 0
 function selectAllReturnOrders() {
     document.querySelectorAll(".return-checkbox")
         .forEach(cb => cb.checked = true);
+}
+function removeSelectedReadyToReturn() {
+
+    const selected = [
+        ...document.querySelectorAll(
+            ".return-checkbox:checked"
+        )
+    ];
+
+    if (!selected.length) {
+        alert("Select orders first");
+        return;
+    }
+
+    if (
+        !confirm(
+            `Remove ${selected.length} orders from Ready To Return?`
+        )
+    ) {
+        return;
+    }
+
+    selected.forEach(cb => {
+        delete readyToReturnOrders[cb.value];
+    });
+
+    saveReturnedOrders();
+
+    renderReturnedOrders();
+
+    updateDashboard();
 }
 function openReturnEmailModal() {
 
@@ -1865,31 +1928,49 @@ function confirmReturnOrders() {
     ];
 
     if (!selected.length) {
-
         alert("Select orders first");
         return;
     }
 
-    selected.forEach(cb => {
+    pendingReturnOrders = selected.map(
+        cb => cb.value
+    );
 
-        const orderNo = cb.value;
+    document.getElementById(
+        "returnConfirmText"
+    ).innerHTML =
+        `You are about to mark <b style="color:#22c55e">${pendingReturnOrders.length}</b> order(s) as Returned.<br>`;
+
+    document
+        .getElementById("returnConfirmModal")
+        .classList.remove("hidden");
+}
+function closeReturnConfirmModal() {
+
+    document
+        .getElementById("returnConfirmModal")
+        .classList.add("hidden");
+
+    pendingReturnOrders = [];
+}
+function executeReturnOrders() {
+
+    pendingReturnOrders.forEach(orderNo => {
 
         const data =
             readyToReturnOrders[orderNo];
 
         returnedOrders.add(orderNo);
 
-returnedOrdersMap[orderNo] = {
+        returnedOrdersMap[orderNo] = {
+            orderNo,
+            ...data,
+            returnedDate:
+                new Date()
+                .toISOString()
+                .slice(0,10)
+        };
 
-    orderNo,
-
-    ...data,
-
-    returnedDate:
-        new Date()
-        .toISOString()
-        .slice(0,10)
-};
         const order = allOrders.find(
             o => o.orderNo === orderNo
         );
@@ -1907,7 +1988,11 @@ returnedOrdersMap[orderNo] = {
 
     renderReturnedOrders();
 
-    alert("Orders Returned Successfully");
+    closeReturnConfirmModal();
+
+    showToast?.(
+        `${pendingReturnOrders.length} Orders Returned Successfully`
+    );
 }
 // const savedReturnedOrders =
 // JSON.parse(
@@ -2084,5 +2169,23 @@ localStorage.setItem("userRole", user.role);
 
 // إعادة تحميل الصفحة  
 location.reload();
+
+}
+
+function removeReadyToReturnOrder(orderNo) {
+
+    const confirmed = confirm(
+        `Remove ${orderNo} from Ready To Return list?`
+    );
+
+    if (!confirmed) return;
+
+    delete readyToReturnOrders[orderNo];
+
+    saveReturnedOrders();
+
+    renderReturnedOrders();
+
+    updateDashboard();
 
 }
