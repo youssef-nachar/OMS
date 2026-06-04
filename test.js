@@ -1543,6 +1543,7 @@ function renderReturnedOrders() {
     <th style="padding:14px">Warehouse</th>
     <th style="padding:14px">Date</th>
     <th style="padding:14px">Status</th>
+    <th style="padding:14px">Comment</th>
     <th style="padding:14px">Edit</th>
 </tr>
 
@@ -1623,7 +1624,9 @@ ${orders.map(orderNo => {
             </span>
 
         </td>
-
+<td style="padding:12px;color:#22c55e">
+    ${data.comment || "-"}
+</td>
         <td style="padding:12px">
 
             <button
@@ -1719,53 +1722,68 @@ function filterReadyToReturnWarehouse(warehouse) {
 
     renderReturnedOrders();
 }
-function editReadyToReturnOrder(oldOrderNo) {
+let editingReturnOrder = null;
 
-    const newOrderNo = prompt(
-        "Enter Correct Order Number",
-        oldOrderNo
-    );
+function editReadyToReturnOrder(orderNo) {
 
-    if (!newOrderNo) return;
+    editingReturnOrder = orderNo;
 
-    const cleanNewOrder =
-        newOrderNo.trim().toUpperCase();
+    const data = readyToReturnOrders[orderNo];
 
-    if (readyToReturnOrders[cleanNewOrder]) {
-        alert("Order already exists");
-        return;
-    }
+    document.getElementById(
+        "editReturnOrderNo"
+    ).value = data.orderNo;
 
-    // جلب الطلب الجديد من النظام
-    const order = allOrders.find(
-        o => o.orderNo.toUpperCase() === cleanNewOrder
-    );
+    document.getElementById(
+        "editReturnComment"
+    ).value = data.comment || "";
 
-    if (!order) {
-        alert("Order not found");
-        return;
-    }
+    document.getElementById(
+        "editReturnModal"
+    ).classList.remove("hidden");
+}
+function closeEditReturnModal() {
 
-    // تحديد المستودع الصحيح للطلب الجديد
-    const warehouse =
-        getOrderWarehouse(cleanNewOrder);
+    document.getElementById(
+        "editReturnModal"
+    ).classList.add("hidden");
+}
+
+function saveEditReturnOrder() {
+
+    const newOrderNo =
+        document.getElementById(
+            "editReturnOrderNo"
+        ).value
+        .trim()
+        .toUpperCase();
+
+    const comment =
+        document.getElementById(
+            "editReturnComment"
+        ).value
+        .trim();
 
     const oldData =
-        readyToReturnOrders[oldOrderNo];
+        readyToReturnOrders[
+            editingReturnOrder
+        ];
 
-    delete readyToReturnOrders[oldOrderNo];
+    delete readyToReturnOrders[
+        editingReturnOrder
+    ];
 
-    readyToReturnOrders[cleanNewOrder] = {
-        orderNo: cleanNewOrder,
-        warehouse: warehouse,
-        date: oldData.date
+    readyToReturnOrders[newOrderNo] = {
+        ...oldData,
+        orderNo: newOrderNo,
+        comment: comment
     };
 
     saveReturnedOrders();
 
     renderReturnedOrders();
 
-    alert("Order Updated Successfully");
+    closeEditReturnModal();
 }
 function confirmReturnOrders() {
 
