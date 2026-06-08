@@ -153,7 +153,6 @@ window.toggleQuickMenu = function (event) {
 
     // إغلاق القائمة عند الضغط خارجها  
     
-
 // اختيار تاريخ سريع
 window.setQuickDate = function (type) {
     const input = document.getElementById("ordersDateFilter");
