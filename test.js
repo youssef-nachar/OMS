@@ -591,9 +591,10 @@ if (type === "distributed") {
 }
 
 if (type === "ready") {
-todayFiltered = todayOrders.filter(o =>
-o.status === "ready_to_distribute"
-);
+    todayFiltered = todayOrders.filter(o =>
+        o.status === "ready_to_distribute" ||
+        o.status === "checked"
+    );
 }
 if (type === "total") {
 todayFiltered = todayOrders;
@@ -634,8 +635,7 @@ function displayOrdersWithBacklog(todayOrders, backlogOrders, type) {
 
 const orderList = document.getElementById("orderList");  
 
-    function buildTable(orders) {  
-
+    function buildTable(orders, type) {
         if (!orders.length) {  
             return `<p style="color:#9ca3af">No orders found.</p>`;  
         }  
@@ -656,21 +656,24 @@ const orderList = document.getElementById("orderList");
         });  
         return `  
     <table>  
-       <tr>  
-<th>Order #</th>  
-<th>Warehouses</th>  
-<th>Status</th>  
+      <tr>
+<th>Order #</th>
+<th>Warehouses</th>
+<th>Status</th>
+${type === "distributed" ? "<th>Company</th>" : ""}
 <th>Comment</th>
-
-</tr>  
+</tr>
             ${orders.map(order => {  let statusText =  
                 order.status === "canceled" ? "Canceled" :  
                 order.status === "distributed" ? "Distributed"  : order.status === "ready_to_distribute"  ? "Ready to Distribute" :  
+                order.status === "checked" ? "Checked" :
                 order.status === "completed" ? "In-Packing" :
-
 order.status === "returned" ? "Returned" :
 order.status === "partial" ? "Partial" : "Pending";
-
+const company =
+    distributedOrdersMap[order.orderNo]?.company ||
+    order.company ||
+    "-";
 return `  
             <tr>  
                 <td>${order.orderNo}</td>  
@@ -722,7 +725,14 @@ return `
 `;  
             }).join("")}  
                 </td>  
-                <td>${statusText}</td>  
+                <td>${statusText}</td>
+${type === "distributed" ? `
+<td>
+    ${company}
+</td>
+` : ""}
+
+<td style="color:#38bdf8;font-size:12px"> 
                 <td style="color:#38bdf8;font-size:12px">  
 ${order.comment ? `
 
@@ -757,7 +767,7 @@ if (!showOnlyBacklog) {
     <h3 style="color:#22c55e;margin-bottom:10px">  
         Today Orders (${todayOrders.length})  
     </h3>  
-    ${buildTable(todayOrders)}  
+    ${buildTable(todayOrders, type)}
 `;  
     }  
 
@@ -801,7 +811,7 @@ if (!showOnlyBacklog) {
         </h4>  
     `;  
 
-            html += buildTable(grouped[date]);  
+            html += buildTable(grouped[date], type);
         });  
     }  
 
@@ -934,9 +944,14 @@ tooltip.style.left = (e.pageX + 15) + "px";
 });
 
 document.addEventListener("mouseout", function (e) {
-if (e.target.closest(".order-row")) {
-document.getElementById("tooltip").classList.add("hidden");
-}
+    if (e.target.closest(".order-row")) {
+
+        const tooltip = document.getElementById("tooltip");
+
+        if (tooltip) {
+            tooltip.classList.add("hidden");
+        }
+    }
 });
 
 const newOrderInput = document.getElementById("newOrderNumber");
@@ -1079,6 +1094,8 @@ const canceledToday = todayOrders.filter(o =>
 const returnedToday = todayOrders.filter(o =>
 o.status === "returned"
 );
+const readyToReturnCount =
+    Object.keys(readyToReturnOrders).length;
 const distributedToday = todayOrders.filter(isDistributed);
 const distributedByCompany = {
     LMD: 0,
@@ -1100,6 +1117,9 @@ distributedToday.forEach(order => {
 });
 const readyToday = todayOrders.filter(o =>
 o.status === "ready_to_distribute"
+);
+const checkedToday = allOrders.filter(o =>
+    o.status === "checked"
 );
 const completedToday = todayOrders.filter(o => o.status === "completed");
 const pendingToday = todayOrders.filter(o =>
@@ -1124,8 +1144,24 @@ o.status === "distributed"
 const readyBacklog = accumulatedOrders.filter(o =>
 o.status === "ready_to_distribute"
 );
+const checkedBacklog = accumulatedOrders.filter(o =>
+    o.status === "checked"
+);
 // ================= DISPLAY =================
 updateKPINumber("returned", returnedToday.length);
+const returnedKpi = document.getElementById("returned");
+
+if (returnedKpi) {
+
+    const returnedSub =
+        returnedKpi.closest(".kpi")
+        ?.querySelector(".sub-number");
+
+    if (returnedSub) {
+        returnedSub.textContent =
+            `Ready To Return: ${readyToReturnCount}`;
+    }
+}
 updateKPINumber("total", todayOrders.length);
 updateKPINumber("distributed", distributedToday.length);
 
@@ -1135,10 +1171,25 @@ const subNumber = distributedCard
     .querySelector(".sub-number");
 
 subNumber.textContent =
-    `LMD:${distributedByCompany.LMD}, ` +
-    `Employee:${distributedByCompany.Employee}, ` +
-    `Wakilni:${distributedByCompany.Wakilni}`;
+    `(LMD: ${distributedByCompany.LMD}) ` +
+    `(Employee: ${distributedByCompany.Employee}) ` +
+    `(Wakilni: ${distributedByCompany.Wakilni})`;
 updateKPINumber("ready", readyToday.length);
+
+const readyContainer =
+    document.getElementById("ready");
+
+if (readyContainer) {
+
+    const readySubNumber =
+        readyContainer.closest(".kpi")
+        ?.querySelector(".sub-number");
+
+    if (readySubNumber) {
+        readySubNumber.textContent =
+            `Checked: ${checkedToday.length}`;
+    }
+}
 updateKPINumber("canceled", canceledToday.length);
 
 updateKPIWithBacklog("completed", completedToday.length, completedBacklog.length);  
@@ -1613,22 +1664,51 @@ ${orders.length === 0
         ">
             ${orderNo}
         </td>
+<td style="padding:12px">
 
-        <td style="padding:12px">
+<div
+    style="
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+    "
+>
 
-            <span style="
-                background:#1e293b;
-                color:#e2e8f0;
-                padding:6px 10px;
-                border-radius:999px;
-                font-size:12px;
-                font-weight:600;
-            ">
-                ${data.warehouse}
-            </span>
+${data.warehouse
+    .split(",")
+    .map(w => w.trim())
+    .map(w => `
 
-        </td>
+<button
+    type="button"
+    class="warehouse-choice"
+    data-order="${orderNo}"
+    data-warehouse="${w}"
+    onclick="selectReturnWarehouse(this)"
+    style="
+        background:#1e293b;
+        color:#e2e8f0;
+        border:1px solid #334155;
+        padding:8px 14px;
+        border-radius:999px;
+        cursor:pointer;
+        font-size:12px;
+        font-weight:600;
+        transition:.2s;
+    "
+>
+    ${w}
+</button>
 
+`).join("")}
+
+</div>
+
+<input
+    type="hidden"
+    id="selectedWarehouse_${orderNo}"
+>
+</td>
         <td style="
             padding:12px;
             color:#94a3b8;
@@ -1783,6 +1863,37 @@ ${orders.length === 0
 function selectAllReturnOrders() {
     document.querySelectorAll(".return-checkbox")
         .forEach(cb => cb.checked = true);
+}
+function selectReturnWarehouse(btn) {
+
+    const orderNo =
+        btn.dataset.order;
+
+    const warehouse =
+        btn.dataset.warehouse;
+
+    document
+        .querySelectorAll(
+            `.warehouse-choice[data-order="${orderNo}"]`
+        )
+        .forEach(b => {
+
+            b.style.background = "#1e293b";
+            b.style.borderColor = "#334155";
+            b.style.color = "#e2e8f0";
+
+        });
+
+    btn.style.background =
+        "linear-gradient(135deg,#22c55e,#16a34a)";
+
+    btn.style.borderColor = "#22c55e";
+
+    btn.style.color = "#fff";
+
+    document.getElementById(
+        `selectedWarehouse_${orderNo}`
+    ).value = warehouse;
 }
 function removeSelectedReadyToReturn() {
 
@@ -1957,20 +2068,32 @@ function executeReturnOrders() {
 
     pendingReturnOrders.forEach(orderNo => {
 
-        const data =
-            readyToReturnOrders[orderNo];
+    const data =
+        readyToReturnOrders[orderNo];
 
-        returnedOrders.add(orderNo);
+    const returnedWarehouse =
+        document.getElementById(
+            `selectedWarehouse_${orderNo}`
+        )?.value;
 
-        returnedOrdersMap[orderNo] = {
-            orderNo,
-            ...data,
-            returnedDate:
-                new Date()
-                .toISOString()
-                .slice(0,10)
-        };
+    if (!returnedWarehouse) {
+        alert(`Please select warehouse for ${orderNo}`);
+        return;
+    }
 
+    returnedOrders.add(orderNo);
+
+    returnedOrdersMap[
+        `${orderNo}_${returnedWarehouse}`
+    ] = {
+        orderNo,
+        warehouse: returnedWarehouse,
+        returnedDate:
+            new Date()
+            .toISOString()
+            .slice(0, 10),
+        comment: data.comment || ""
+    };
         const order = allOrders.find(
             o => o.orderNo === orderNo
         );
@@ -1979,7 +2102,47 @@ function executeReturnOrders() {
             order.status = "returned";
         }
 
+        const warehouseSelect =
+    document.querySelector(
+        `.return-warehouse-select[data-order="${orderNo}"]`
+    );
+
+if (warehouseSelect) {
+
+    const selectedWarehouse =
+    document.getElementById(
+        `selectedWarehouse_${orderNo}`
+    )?.value;
+    let warehouses =
+        data.warehouse
+            .split(",")
+            .map(w => w.trim());
+
+    warehouses =
+        warehouses.filter(
+            w => w !== selectedWarehouse
+        );
+
+    // إذا بقي مستودعات
+    if (warehouses.length) {
+
+        readyToReturnOrders[orderNo] = {
+            ...data,
+            warehouse: warehouses.join(", ")
+        };
+
+    } else {
+
         delete readyToReturnOrders[orderNo];
+
+    }
+
+} else {
+
+    // طلب من مستودع واحد
+    delete readyToReturnOrders[orderNo];
+
+}
     });
 
     saveReturnedOrders();
