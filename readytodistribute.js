@@ -47,6 +47,7 @@ function renderSingleBatch(title, orders) {
             <table style="width:100%;text-align:center">
                 <tr>
                     <th>Order</th>
+                    <th>Warehouse</th>
                     <th>Boxes</th>
                     <th>CBM</th>
                 </tr>
@@ -54,6 +55,7 @@ function renderSingleBatch(title, orders) {
                 ${orders.map(o => `
                     <tr>
                         <td>${o.orderNo}</td>
+                        <td>${o.warehouse || "-"}</td>
                         <td>${o.boxes || 0}</td>
                         <td>${o.cbm || 0}</td>
                     </tr>
@@ -128,16 +130,17 @@ function getCurrentBatchList() {
     ] || [];
 
 }
-function getCurrentBatch() {
+function getCurrentBatch(company) {
 
     const now = new Date();
 
     const currentMinutes =
         now.getHours() * 60 + now.getMinutes();
 
-    const batches = getCurrentBatchList();
+    const batches =
+        appSettings.batchTypes[company] || [];
 
-for (const batch of batches) {
+    for (const batch of batches) {
 
         const [fromH, fromM] = batch.from.split(":").map(Number);
         const [toH, toM] = batch.to.split(":").map(Number);
@@ -150,17 +153,19 @@ for (const batch of batches) {
             currentMinutes < toMinutes
         ) {
             return {
-    type: appSettings.selectedBatchType,
-    name: batch.name
-};
+                type: company,
+                name: batch.name
+            };
         }
     }
 
     return {
-    type: appSettings.selectedBatchType,
-    name: "No Batch"
-};
+        type: company,
+        name: "No Batch"
+    };
 }
+
+
 function openReadyEditModal(orderNo, boxes, cbm) {
 
     editingReadyOrderNo = orderNo;
@@ -480,26 +485,6 @@ height:fit-content;
                 style="width:100%;padding:10px;margin-bottom:10px;
                 border-radius:10px;border:1px solid #1f2937;
                 background:#020617;color:white" />
-<select id="batchTypeSelect"
-    onchange="changeBatchType(this.value)"
-    style="
-        width:100%;
-        padding:10px;
-        margin-bottom:10px;
-        border-radius:10px;
-        background:#020617;
-        color:white;
-        border:1px solid #1f2937;
-    ">
-
-    ${Object.keys(appSettings.batchTypes).map(type => `
-        <option value="${type}"
-            ${appSettings.selectedBatchType === type ? "selected" : ""}>
-            ${type}
-        </option>
-    `).join("")}
-
-</select>
             <button onclick="moveToReadyFromInputs()"
                style="
 width:100%;
@@ -628,7 +613,7 @@ function distributeSelectedOrders() {
     }
 
     const selectedOrders = Array.from(checkboxes).map(cb => cb.value);
-    const currentBatch = getCurrentBatch();
+    
     const todayISO = new Date().toISOString();
     const todayDate = todayISO.split("T")[0];
 
@@ -643,6 +628,9 @@ function distributeSelectedOrders() {
             const order = child.val();
 
             if (selectedOrders.includes(order.orderNo)) {
+
+    const currentBatch =
+        getCurrentBatch(order.company || "LMD");
 
                 const updateData = {
 
@@ -723,14 +711,7 @@ batchType: currentBatch.type
 
     });
 }
-function changeBatchType(type) {
 
-    appSettings.selectedBatchType = type;
-
-    saveSettings();
-
-    renderBatchesTable();
-}
 function initReadyToDistribute() {
 
     const input = document.getElementById("readyOrderInput");
@@ -758,9 +739,10 @@ function moveToReady(orderNo) {
             const order = child.val();
 
             if (order.orderNo === orderNo) {
-
+const warehouse = order.warehouse || order.store || "";
                 update(ref(db, "orders/" + child.key), {
                     readyToDistribute: true,
+                    warehouse: warehouse,
                     status: "ready_to_distribute", // ✅ مهم جداً
                     readyTime: new Date().toISOString(),
                     history: [
