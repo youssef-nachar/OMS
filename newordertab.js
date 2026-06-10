@@ -87,8 +87,8 @@ function saveNewOrder() {
         .toUpperCase();
 
     const warehouseInput = normalizeWarehouseName(
-    document.getElementById("newWarehouseName").value
-);
+        document.getElementById("newWarehouseName").value
+    );
 
     const date = document
         .getElementById("newOrderDate").value;
@@ -98,88 +98,73 @@ function saveNewOrder() {
         return;
     }
 
-    const ordersRef = ref(db, "orders");
+    const ordersRef = ref(db, "orders_new");
 
-   runTransaction(ordersRef, (orders) => {
+    runTransaction(ordersRef, (orders) => {
 
-    if (!orders) orders = {};
+        if (!orders) orders = {};
 
-    let existingKey = null;
+        let existingKey = null;
 
-    Object.entries(orders).forEach(([key, order]) => {
-        if (order.orderNo === orderNo) {
-            existingKey = key;
-        }
-    });
-
-    if (existingKey) {
-
-        const order = orders[existingKey];
-
-        const exists = order.warehouses?.some(
-            w => w.base.toUpperCase() === warehouseInput
-        );
-
-        if (exists) return orders;
-
-        order.warehouses.push({
-            base: warehouseInput,
-            packed: false,
-            receivedTime: new Date().toISOString()
+        Object.entries(orders).forEach(([key, order]) => {
+            if (order.orderNo === orderNo) {
+                existingKey = key;
+            }
         });
 
-        orders[existingKey] = order;
+        if (existingKey) {
 
-    } else {
+            const order = orders[existingKey];
 
-        const newKey = push(ref(db, "orders")).key;
+            const exists = order.warehouses?.some(
+                w => w.base.toUpperCase() === warehouseInput
+            );
 
-        orders[newKey] = {
-            orderNo: orderNo,
-            date: date,
-            createdAt: new Date().toISOString(),
-            history: [
-                {
-                    action: "created",
-                    date: new Date().toISOString(),
-                    by: localStorage.getItem("currentWarehouse")
-                }
-            ],
-            warehouses: [
-                {
-                    base: warehouseInput,
-                    packed: false,
-                    receivedTime: new Date().toISOString()
-                }
-            ],
-            status: "pending"
-        };
-    }
+            if (exists) return orders;
 
-    return orders;
-}).then(() => {
-
-    // 🔥 حفظ إضافي في label خاص داخل Firebase
-    const newOrdersRef = ref(db, "orders_new");
-
-    push(newOrdersRef, {
-        orderNo: orderNo,
-        date: date,
-        createdAt: new Date().toISOString(),
-        warehouses: [
-            {
+            order.warehouses.push({
                 base: warehouseInput,
                 packed: false,
                 receivedTime: new Date().toISOString()
-            }
-        ],
-        status: "pending",
-        source: "new_order_tab"
-    });
+            });
 
-    // تنظيف الفورم مثل السابق
-    clearNewOrderForm();
-});
+            orders[existingKey] = order;
+
+        } else {
+
+            const newKey = push(ref(db, "orders_new")).key;
+
+            orders[newKey] = {
+                orderNo: orderNo,
+                date: date,
+                createdAt: new Date().toISOString(),
+                history: [
+                    {
+                        action: "created",
+                        date: new Date().toISOString(),
+                        by: localStorage.getItem("currentWarehouse")
+                    }
+                ],
+                warehouses: [
+                    {
+                        base: warehouseInput,
+                        packed: false,
+                        receivedTime: new Date().toISOString()
+                    }
+                ],
+                status: "pending",
+                source: "new_order_tab"
+            };
+        }
+
+        return orders;
+
+    }).then(() => {
+
+        // تنظيف الفورم مثل السابق
+        clearNewOrderForm();
+
+    });
 
 }
 let visibleCount = 300;
@@ -654,39 +639,42 @@ fillWarehouseDropdown();
 
 function reopenOrder(orderNo) {
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+    paths.forEach(path => {
 
-        snapshot.forEach(child => {
+        get(ref(db, path)).then(snapshot => {
 
-            const order = child.val();
+            snapshot.forEach(child => {
 
-            if (order.orderNo === orderNo) {
+                const order = child.val();
 
-                update(ref(db, "orders/" + child.key), {
+                if (order.orderNo === orderNo) {
 
-                    status: "pending",
+                    update(ref(db, `${path}/${child.key}`), {
 
-                    history: [
-                        ...(order.history || []),
-                        {
-                            action: "reopened",
-                            date: new Date().toISOString(),
-                            by: localStorage.getItem("currentWarehouse")
-                        }
-                    ]
+                        status: "pending",
 
-                });
+                        history: [
+                            ...(order.history || []),
+                            {
+                                action: "reopened",
+                                date: new Date().toISOString(),
+                                by: localStorage.getItem("currentWarehouse")
+                            }
+                        ]
 
-            }
+                    });
+
+                }
+
+            });
 
         });
 
     });
 
 }
-
 
 function updateFilterButtonsCounts() {
 
@@ -1193,7 +1181,7 @@ if (role === "manager") {
 function closeEditModal() {
     document.getElementById("editOrderModal").classList.add("hidden");
 }
-function deleteOrder() {
+async function deleteOrder() {
 
     const role = localStorage.getItem("userRole");
 
@@ -1204,9 +1192,11 @@ function deleteOrder() {
 
     if (!confirm("⚠️ Delete this order permanently?")) return;
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+    for (const path of paths) {
+
+        const snapshot = await get(ref(db, path));
 
         snapshot.forEach(child => {
 
@@ -1214,19 +1204,15 @@ function deleteOrder() {
 
             if (data.orderNo === window.editingOrderNo) {
 
-                remove(ref(db, "orders/" + child.key))
-                    .then(() => {
-                        closeEditModal();
-                        renderRecentOrders();
-                        updateDashboard();
-                    });
+                remove(ref(db, `${path}/${child.key}`));
 
             }
 
         });
 
-    });
+    }
 
+    closeEditModal();
 }
 document.getElementById("deleteOrderBtn")
     .addEventListener("click", deleteOrder);
@@ -1235,9 +1221,11 @@ function saveEditedOrder() {
     const newOrderNo = document.getElementById("editOrderNumber").value.trim();
     const comment = document.getElementById("editOrderComment").value.trim();
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+paths.forEach(path => {
+
+    get(ref(db, path)).then(snapshot => {
 
         snapshot.forEach(child => {
 
@@ -1245,7 +1233,7 @@ function saveEditedOrder() {
 
             if (data.orderNo === window.editingOrderNo) {
 
-                update(ref(db, "orders/" + child.key), {
+                update(ref(db, `${path}/${child.key}`), {
                     orderNo: newOrderNo,
                     comment: comment,
                     history: [
@@ -1256,8 +1244,8 @@ function saveEditedOrder() {
                             by: localStorage.getItem("currentWarehouse"),
                             oldOrderNo: data.orderNo,
                             newOrderNo: newOrderNo,
-                            oldComment: data.comment || "",   // ✅ القديم
-                            newComment: comment              // ✅ الجديد
+                            oldComment: data.comment || "",
+                            newComment: comment
                         }
                     ]
                 });
@@ -1267,6 +1255,10 @@ function saveEditedOrder() {
         });
 
     });
+
+});
+
+  
 
     closeEditModal();
 
@@ -1284,32 +1276,36 @@ function cancelOrder() {
 
     if (!confirm("Cancel this order ?")) return;
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+    paths.forEach(path => {
 
-        snapshot.forEach(child => {
+        get(ref(db, path)).then(snapshot => {
 
-            const data = child.val();
+            snapshot.forEach(child => {
 
-            if (data.orderNo === window.editingOrderNo) {
+                const data = child.val();
 
-                update(ref(db, "orders/" + child.key), {
+                if (data.orderNo === window.editingOrderNo) {
 
-                    status: "canceled",
+                    update(ref(db, `${path}/${child.key}`), {
 
-                    history: [
-                        ...(data.history || []),
-                        {
-                            action: "canceled",
-                            date: new Date().toISOString(),
-                            by: localStorage.getItem("currentWarehouse")
-                        }
-                    ]
+                        status: "canceled",
 
-                });
+                        history: [
+                            ...(data.history || []),
+                            {
+                                action: "canceled",
+                                date: new Date().toISOString(),
+                                by: localStorage.getItem("currentWarehouse")
+                            }
+                        ]
 
-            }
+                    });
+
+                }
+
+            });
 
         });
 
@@ -1353,9 +1349,11 @@ function markWarehousePacking(orderNo, warehouseName) {
         `Receive order <b>${orderNo}</b> in <b>${warehouseName}</b>?`,
         () => {
 
-            const ordersRef = ref(db, "orders");
+            const paths = ["orders", "orders_new"];
 
-            onValue(ordersRef, (snapshot) => {
+paths.forEach(path => {
+
+    onValue(ref(db, path), (snapshot) => {
 
                 const data = snapshot.val();
 
@@ -1376,7 +1374,7 @@ function markWarehousePacking(orderNo, warehouseName) {
                             return w;
                         });
 
-                        update(ref(db, "orders/" + key), {
+                        update(ref(db, `${path}/${key}`), {
                             warehouses: updatedWarehouses,
                             history: [
                                 ...(order.history || []),
@@ -1396,6 +1394,7 @@ function markWarehousePacking(orderNo, warehouseName) {
             }, { onlyOnce: true });
 
         });
+        })
 }
 function openConfirmModal(message, onConfirm) {
 
