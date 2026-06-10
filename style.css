@@ -3590,3 +3590,29 @@ background:#0ea5e911;
             scale(1);
     }
 }
+input[type="date"]::-webkit-calendar-picker-indicator{
+    cursor:pointer;
+    filter:invert(1);
+    opacity:.9;
+}
+
+input[type="date"]{
+    color-scheme:dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator{
+    filter:
+        brightness(0)
+        invert(1)
+        drop-shadow(0 0 3px rgba(255,255,255,.7));
+    cursor:pointer;
+    opacity:1;
+    transition:.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover{
+    transform:scale(1.15);
+    filter:
+        brightness(0)
+        invert(1)
+        drop-shadow(0 0 6px rgba(255,255,255,.9));
+}
