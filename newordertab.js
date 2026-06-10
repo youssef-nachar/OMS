@@ -1,4 +1,6 @@
 let recentOrders = [];
+let selectedFromDate = "";
+let selectedToDate = "";
 function showNewOrderTab() {
 document.getElementById("dashboardHeader").style.display="none"
     const currentWarehouse = localStorage.getItem("currentWarehouse");
@@ -265,7 +267,14 @@ if (role === "manager" && selectedWarehouseFilter) {
     if (!match) return false;
 }
         const orderDate = getOrderDate(order);
+// ===== Date Range Filter =====
+if (selectedFromDate && orderDate < selectedFromDate) {
+    return false;
+}
 
+if (selectedToDate && orderDate > selectedToDate) {
+    return false;
+}
         // 🔥 فلترة من تاريخ معين
         if (orderDate < DEFAULT_START) return false;
 if (selectedDateFilter) {
@@ -287,6 +296,21 @@ if (selectedDateFilter) {
         return true;
     });
 }
+document.getElementById("fromDateFilter")
+?.addEventListener("change", function () {
+
+    selectedFromDate = this.value;
+    renderRecentOrders();
+
+});
+
+document.getElementById("toDateFilter")
+?.addEventListener("change", function () {
+
+    selectedToDate = this.value;
+    renderRecentOrders();
+
+});
 function getReceivedCount() {
     const base = getBaseFilteredOrders();
 
