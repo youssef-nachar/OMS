@@ -1,19 +1,29 @@
     function getEffectiveDate(order) {
 
-        // Distributed
-        if (order.status === "distributed") {
-            return distributedOrdersMap[order.orderNo]?.date;
-        }
-
-        // Completed (In-Packing)
-        if (order.status === "completed") {
-            const firstPackedWH = order.warehouses.find(w => w.packed);
-            return firstPackedWH?.packingTime || order.date;
-        }
-
-        // Pending / Partial
-        return order.date;
+    // Distributed
+    if (order.status === "distributed") {
+        return distributedOrdersMap[order.orderNo]?.date;
     }
+
+    // Ready To Distribute / Checked
+    if (
+        order.status === "ready_to_distribute" ||
+        order.status === "checked"
+    ) {
+        return order.readyTime
+            ? order.readyTime.slice(0, 10)
+            : order.date;
+    }
+
+    // Completed (In-Packing)
+    if (order.status === "completed") {
+        const firstPackedWH = order.warehouses.find(w => w.packed);
+        return firstPackedWH?.packingTime || order.date;
+    }
+
+    // Pending / Partial
+    return order.date;
+}
 
     function initDate() {
         const today = new Date().toISOString().slice(0, 10);
