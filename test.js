@@ -1496,36 +1496,58 @@ function renderReturnedOrders() {
     const container =
         document.getElementById("returnedOrdersList");
 
+    if (!container) return;
+
     let orders = Object.keys(readyToReturnOrders);
 
-    // استخراج المستودعات
-const warehouses = [
-    "PHARMA",
-    "RETAIL",
-    "P&C",
-    "LOREAL LUX",
-    "BEESLINE"
-];
+    const warehouses = [
+        "PHARMA",
+        "RETAIL",
+        "P&C",
+        "LOREAL LUX",
+        "BEESLINE"
+    ];
 
-    // تطبيق الفلتر
-// تطبيق الفلتر
-if (readyToReturnWarehouseFilter) {
+    // تحويل الطلبات إلى Rows (كل مستودع بسطر مستقل)
+    let rows = [];
 
-    orders = orders.filter(orderNo => {
+    orders.forEach(orderNo => {
 
-        const warehouse =
-            (readyToReturnOrders[orderNo]?.warehouse || "")
-            .toUpperCase()
-            .replace(/'/g, "");
+        const data = readyToReturnOrders[orderNo];
+
+        const orderWarehouses = (data.warehouse || "")
+            .split(",")
+            .map(w => w.trim())
+            .filter(Boolean);
+
+        orderWarehouses.forEach(warehouse => {
+
+            rows.push({
+                orderNo,
+                warehouse,
+                data
+            });
+
+        });
+
+    });
+
+    // فلترة على مستوى المستودع
+    if (readyToReturnWarehouseFilter) {
 
         const filter =
             readyToReturnWarehouseFilter
-            .toUpperCase()
-            .replace(/'/g, "");
+                .toUpperCase()
+                .replace(/'/g, "");
 
-        return warehouse.includes(filter);
-    });
-}
+        rows = rows.filter(row =>
+            row.warehouse
+                .toUpperCase()
+                .replace(/'/g, "") === filter
+        );
+
+    }
+
     container.innerHTML = `
 
 <div style="
@@ -1586,7 +1608,7 @@ if (readyToReturnWarehouseFilter) {
         font-weight:700;
         font-size:14px;
     ">
-        ${orders.length} Orders
+        ${rows.length} Orders
     </div>
 
 </div>
@@ -1614,13 +1636,13 @@ if (readyToReturnWarehouseFilter) {
     <th style="padding:14px">Status</th>
     <th style="padding:14px">Comment</th>
     <th style="padding:14px">Edit</th>
-<th style="padding:14px">Remove</th>
+    <th style="padding:14px">Remove</th>
 </tr>
 
-${orders.length === 0
+${rows.length === 0
 ? `
 <tr>
-    <td colspan="7" style="
+    <td colspan="8" style="
         text-align:center;
         padding:30px;
         color:#94a3b8;
@@ -1629,165 +1651,103 @@ ${orders.length === 0
     </td>
 </tr>
 `
-: orders.map(orderNo => {
+: rows.map(row => {
 
-    const data = readyToReturnOrders[orderNo];
+    const orderNo = row.orderNo;
+    const warehouse = row.warehouse;
+    const data = row.data;
 
     return `
 
-    <tr
-        style="
-            border-bottom:1px solid #1e293b;
-            transition:.2s;
-        "
-        onmouseover="this.style.background='#111827'"
-        onmouseout="this.style.background='transparent'"
-    >
-
-        <td style="text-align:center;padding:12px">
-            <input
-                type="checkbox"
-                class="return-checkbox"
-                value="${orderNo}"
-                style="
-                    width:18px;
-                    height:18px;
-                    cursor:pointer;
-                "
-            >
-        </td>
-
-        <td style="
-            padding:12px;
-            font-weight:700;
-            color:#38bdf8;
-        ">
-            ${orderNo}
-        </td>
-<td style="padding:12px">
-
-<div
+<tr
     style="
-        display:flex;
-        flex-wrap:wrap;
-        gap:6px;
-    "
->
-
-${data.warehouse
-    .split(",")
-    .map(w => w.trim())
-    .map(w => `
-
-<button
-    type="button"
-    class="warehouse-choice"
-    data-order="${orderNo}"
-    data-warehouse="${w}"
-    onclick="selectReturnWarehouse(this)"
-    style="
-        background:#1e293b;
-        color:#e2e8f0;
-        border:1px solid #334155;
-        padding:8px 14px;
-        border-radius:999px;
-        cursor:pointer;
-        font-size:12px;
-        font-weight:600;
+        border-bottom:1px solid #1e293b;
         transition:.2s;
     "
+    onmouseover="this.style.background='#111827'"
+    onmouseout="this.style.background='transparent'"
 >
-    ${w}
-</button>
 
-`).join("")}
+    <td style="text-align:center;padding:12px">
+        <input
+            type="checkbox"
+            class="return-checkbox"
+            value="${orderNo}|||${warehouse}"
+        >
+    </td>
 
-</div>
+    <td style="
+        padding:12px;
+        font-weight:700;
+        color:#38bdf8;
+    ">
+        ${orderNo}
+    </td>
 
-<input
-    type="hidden"
-    id="selectedWarehouse_${orderNo}"
->
-</td>
-        <td style="
-            padding:12px;
-            color:#94a3b8;
-        ">
-            ${data.date}
-        </td>
+    <td style="padding:12px">
+        ${warehouse}
+    </td>
 
-        <td style="padding:12px">
+    <td style="
+        padding:12px;
+        color:#94a3b8;
+    ">
+        ${data.date || "-"}
+    </td>
 
-            <span style="
-                background:linear-gradient(
-                    135deg,
-                    #f59e0b,
-                    #ea580c
-                );
-                color:white;
-                padding:6px 12px;
-                border-radius:999px;
-                font-size:12px;
-                font-weight:700;
-                box-shadow:0 0 10px rgba(245,158,11,.3);
-            ">
-                Ready To Return
-            </span>
-
-        </td>
-<td style="padding:12px;color:#22c55e">
-    ${data.comment || "-"}
-</td>
-        <td style="padding:12px">
-
-            <button
-                onclick="editReadyToReturnOrder('${orderNo}')"
-                style="
-                    background:linear-gradient(
-                        135deg,
-                        #2563eb,
-                        #3b82f6
-                    );
-                    color:white;
-                    border:none;
-                    padding:8px 14px;
-                    border-radius:8px;
-                    cursor:pointer;
-                    font-weight:600;
-                "
-            >
-                ✏️ Edit
-            </button>
-<td style="padding:12px">
-
-    <button
-        onclick="removeReadyToReturnOrder('${orderNo}')"
-        style="
-            background:#dc2626;
+    <td style="padding:12px">
+        <span style="
+            background:linear-gradient(135deg,#f59e0b,#ea580c);
             color:white;
-            border:none;
-            padding:8px 14px;
-            border-radius:8px;
-            cursor:pointer;
-            font-weight:600;
-        "
-    >
-        🗑 Remove
-    </button>
+            padding:6px 12px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:700;
+        ">
+            Ready To Return
+        </span>
+    </td>
 
-</td>
-        </td>
+    <td style="
+        padding:12px;
+        color:#22c55e;
+    ">
+        ${data.comment || "-"}
+    </td>
 
-    </tr>
+    <td style="padding:12px">
+        <button
+            onclick="editReadyToReturnOrder('${orderNo}')"
+        >
+            ✏️ Edit
+        </button>
+    </td>
 
-    `;
-}).join("")}
+    <td style="padding:12px">
+        <button  onclick="removeWarehouseFromReadyToReturn(
+    '${orderNo}',
+    '${warehouse.replace(/'/g, "\\'")}'
+)">
+            🗑 Remove
+        </button>
+    </td>
+
+</tr>
+
+`;
+}).join("")
+}
 
 </table>
 
 </div>
 
-<div style="margin-top:15px; display:flex; gap:10px">
+<div style="
+    margin-top:15px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+">
 
     <button
         onclick="selectAllReturnOrders()"
@@ -1817,48 +1777,78 @@ ${data.warehouse
         Clear
     </button>
 
-<button
-    onclick="confirmReturnOrders()"
-    style="
-        background:#dc2626;
-        color:white;
-        border:none;
-        padding:10px 20px;
-        border-radius:8px;
-        cursor:pointer;
-    "
->
-    Return Selected
-</button>
-<button
-    onclick="exportSelectedReadyToReturn()"
-    style="
-        background:#16a34a;
-        color:white;
-        border:none;
-        padding:10px 20px;
-        border-radius:8px;
-        cursor:pointer;
-    "
->
-    Export To Excel
-</button>
-<button
-    onclick="removeSelectedReadyToReturn()"
-    style="
-        background:#b91c1c;
-        color:white;
-        border:none;
-        padding:10px 20px;
-        border-radius:8px;
-        cursor:pointer;
-    "
->
-    Remove Selected
-</button>
+    <button
+        onclick="confirmReturnOrders()"
+        style="
+            background:#dc2626;
+            color:white;
+            border:none;
+            padding:10px 20px;
+            border-radius:8px;
+            cursor:pointer;
+        "
+    >
+        Return Selected
+    </button>
+
+    <button
+        onclick="exportSelectedReadyToReturn()"
+        style="
+            background:#16a34a;
+            color:white;
+            border:none;
+            padding:10px 20px;
+            border-radius:8px;
+            cursor:pointer;
+        "
+    >
+        Export To Excel
+    </button>
+
+    <button
+        onclick="removeSelectedReadyToReturn()"
+        style="
+            background:#b91c1c;
+            color:white;
+            border:none;
+            padding:10px 20px;
+            border-radius:8px;
+            cursor:pointer;
+        "
+    >
+        Remove Selected
+    </button>
+
 </div>
 
 `;
+
+}
+function removeWarehouseFromReadyToReturn(orderNo, warehouse) {
+
+    const data = readyToReturnOrders[orderNo];
+
+    let warehouses = data.warehouse
+        .split(",")
+        .map(w => w.trim())
+        .filter(w => w !== warehouse);
+
+    if (warehouses.length) {
+
+        readyToReturnOrders[orderNo] = {
+            ...data,
+            warehouse: warehouses.join(", ")
+        };
+
+    } else {
+
+        delete readyToReturnOrders[orderNo];
+
+    }
+
+    saveReturnedOrders();
+    renderReturnedOrders();
+    updateDashboard();
 }
 function selectAllReturnOrders() {
     document.querySelectorAll(".return-checkbox")
@@ -1917,8 +1907,16 @@ function removeSelectedReadyToReturn() {
     }
 
     selected.forEach(cb => {
-        delete readyToReturnOrders[cb.value];
-    });
+
+    const [orderNo, warehouse] =
+        cb.value.split("|||");
+
+    removeWarehouseFromReadyToReturn(
+        orderNo,
+        warehouse
+    );
+
+});
 
     saveReturnedOrders();
 
@@ -2043,9 +2041,17 @@ function confirmReturnOrders() {
         return;
     }
 
-    pendingReturnOrders = selected.map(
-        cb => cb.value
-    );
+    pendingReturnOrders = selected.map(cb => {
+
+    const [orderNo, warehouse] =
+        cb.value.split("|||");
+
+    return {
+        orderNo,
+        warehouse
+    };
+
+});
 
     document.getElementById(
         "returnConfirmText"
@@ -2066,20 +2072,18 @@ function closeReturnConfirmModal() {
 }
 function executeReturnOrders() {
 
-    pendingReturnOrders.forEach(orderNo => {
+    pendingReturnOrders.forEach(item => {
 
-    const data =
-        readyToReturnOrders[orderNo];
+        const orderNo =
+            item.orderNo;
 
-    const returnedWarehouse =
-        document.getElementById(
-            `selectedWarehouse_${orderNo}`
-        )?.value;
+        const returnedWarehouse =
+            item.warehouse;
 
-    if (!returnedWarehouse) {
-        alert(`Please select warehouse for ${orderNo}`);
-        return;
-    }
+        const data =
+            readyToReturnOrders[orderNo];
+
+    
 
     returnedOrders.add(orderNo);
 
@@ -2102,44 +2106,25 @@ function executeReturnOrders() {
             order.status = "returned";
         }
 
-        const warehouseSelect =
-    document.querySelector(
-        `.return-warehouse-select[data-order="${orderNo}"]`
+        let warehouses =
+    data.warehouse
+        .split(",")
+        .map(w => w.trim());
+
+warehouses =
+    warehouses.filter(
+        w => w !== returnedWarehouse
     );
 
-if (warehouseSelect) {
+if (warehouses.length) {
 
-    const selectedWarehouse =
-    document.getElementById(
-        `selectedWarehouse_${orderNo}`
-    )?.value;
-    let warehouses =
-        data.warehouse
-            .split(",")
-            .map(w => w.trim());
-
-    warehouses =
-        warehouses.filter(
-            w => w !== selectedWarehouse
-        );
-
-    // إذا بقي مستودعات
-    if (warehouses.length) {
-
-        readyToReturnOrders[orderNo] = {
-            ...data,
-            warehouse: warehouses.join(", ")
-        };
-
-    } else {
-
-        delete readyToReturnOrders[orderNo];
-
-    }
+    readyToReturnOrders[orderNo] = {
+        ...data,
+        warehouse: warehouses.join(", ")
+    };
 
 } else {
 
-    // طلب من مستودع واحد
     delete readyToReturnOrders[orderNo];
 
 }
