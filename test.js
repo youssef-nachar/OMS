@@ -779,7 +779,7 @@ if (!showOnlyBacklog) {
         backlogOrders.forEach(order => {  
 
             const dateKey = normalizeDateOnly(getEffectiveDate(order));  
-            
+
             if (!grouped[dateKey]) {  
                 grouped[dateKey] = [];  
             }  
@@ -2336,4 +2336,13 @@ function removeReadyToReturnOrder(orderNo) {
 
     updateDashboard();
 
+}
+function normalizeDateOnly(dateStr) {
+    if (!dateStr) return "No Date";
+
+    const d = new Date(dateStr);
+
+    if (isNaN(d)) return dateStr.split(" ")[0]; // fallback
+
+    return d.toISOString().slice(0, 10); // YYYY-MM-DD
 }
