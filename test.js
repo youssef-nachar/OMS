@@ -778,8 +778,8 @@ if (!showOnlyBacklog) {
 
         backlogOrders.forEach(order => {  
 
-            const dateKey = getEffectiveDate(order) || "No Date";  
-
+            const dateKey = normalizeDateOnly(getEffectiveDate(order));  
+            
             if (!grouped[dateKey]) {  
                 grouped[dateKey] = [];  
             }  
