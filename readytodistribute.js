@@ -842,26 +842,41 @@ container.innerHTML = `
     <th>Boxes</th>
     <th>CBM</th>
     <th style="position:relative;">
-    <select
-        onchange="filterReadyByCompany(this.value)"
-        style="
-            width:100%;
-            background:transparent;
-            border:none;
-            color:#635d45;
-            font-weight:700;
-            text-align:center;
-            cursor:pointer;
-            outline:none;
-            appearance:none;
-            padding-right:20px;
-        "
-    >
-        <option value="">companny </option>
-        <option value="LMD">LMD</option>
-        <option value="Wakilni">Wakilni</option>
-        <option value="Employee">Employee</option>
-    </select>
+  <select
+    id="readyCompanyFilter"
+    onchange="filterReadyByCompany(this.value)"
+    style="
+        width:100%;
+        background:transparent;
+        border:none;
+        color:#635d45;
+        font-weight:700;
+        text-align:center;
+        cursor:pointer;
+        outline:none;
+        appearance:none;
+        padding-right:20px;
+    "
+>
+    <option value="" ${selectedCompanyFilter === "" ? "selected" : ""}>
+        All Companies
+    </option>
+
+    <option value="LMD"
+        ${selectedCompanyFilter === "LMD" ? "selected" : ""}>
+        LMD
+    </option>
+
+    <option value="Wakilni"
+        ${selectedCompanyFilter === "Wakilni" ? "selected" : ""}>
+        Wakilni
+    </option>
+
+    <option value="Employee"
+        ${selectedCompanyFilter === "Employee" ? "selected" : ""}>
+        Employee
+    </option>
+</select>
 
     <span style="
         position:absolute;
@@ -880,23 +895,35 @@ container.innerHTML = `
     Action
     <div style="margin-top:5px;">
         <select
-            onchange="setStatusFilter(this.value)"
-            style="
-                width:100%;
-                background:transparent;
-                border:none;
-            color:#635d45;
-                font-weight:700;
-                text-align:center;
-                cursor:pointer;
-                outline:none;
-                appearance:none;
-            "
-        >
-            <option value="">All Status</option>
-            <option value="checked">Checked</option>
-            <option value="ready">Ready</option>
-        </select>
+    id="readyStatusFilter"
+    onchange="setStatusFilter(this.value)"
+    style="
+        width:100%;
+        background:transparent;
+        border:none;
+        color:#635d45;
+        font-weight:700;
+        text-align:center;
+        cursor:pointer;
+        outline:none;
+        appearance:none;
+    "
+>
+    <option value=""
+        ${selectedStatusFilter === "" ? "selected" : ""}>
+        All Status
+    </option>
+
+    <option value="checked"
+        ${selectedStatusFilter === "checked" ? "selected" : ""}>
+        Checked
+    </option>
+
+    <option value="ready"
+        ${selectedStatusFilter === "ready" ? "selected" : ""}>
+        Ready
+    </option>
+</select>
         <span style="
         position:absolute;
         right:8px;
@@ -1206,7 +1233,18 @@ function updateSelectAllReady() {
 }
 
 function filterReadyByCompany(company) {
-    selectedCompanyFilter = company;
+console.log("Selected Company:", company);
+
+    if (
+        company === "" ||
+        company === "all" ||
+        company === null
+    ) {
+        selectedCompanyFilter = "";
+    } else {
+        selectedCompanyFilter = company;
+    }
+
     renderReadyOrders();
 }
 function clearCompanyFilter() {
@@ -1279,6 +1317,18 @@ if (localOrder) {
 }
 
 function setStatusFilter(type) {
-    selectedStatusFilter = type;
+
+    if (
+        type === "" ||
+        type === "all" ||
+        type === null
+    ) {
+        selectedStatusFilter = "";
+    } else {
+        selectedStatusFilter = type;
+    }
+
+    console.log("Status Filter:", selectedStatusFilter);
+
     renderReadyOrders();
 }
