@@ -2,11 +2,13 @@ function showDashboardHome() {
 document.getElementById("reportConfigPage").classList.add("hidden")
     // إظهار الهيدر
     document.getElementById("dashboardHeader").style.display = "flex";
+    document.getElementById("orderCommentsTab")
+        .classList.add("hidden");
 
     // إخفاء كل التابات
     document.getElementById("newOrderTab").classList.add("hidden");
     document.getElementById("reportsTab").classList.add("hidden");
-    document.getElementById("teamNotesTab").classList.add("hidden");
+
     document.getElementById("readyTab").classList.add("hidden");
     document.getElementById("returnTab").classList.add("hidden");
     document.getElementById("aboutTab").classList.add("hidden");
@@ -20,6 +22,8 @@ document.getElementById("reportConfigPage").classList.add("hidden")
 }
 
 function showAboutTab() {
+    document.getElementById("orderCommentsTab")
+        .classList.add("hidden");
 
     // إخفاء الهيدر إذا أردت
     document.getElementById("dashboardHeader").style.display = "none";
@@ -27,7 +31,7 @@ function showAboutTab() {
     // إخفاء كل التابات
     document.getElementById("newOrderTab").classList.add("hidden");
     document.getElementById("reportsTab").classList.add("hidden");
-    document.getElementById("teamNotesTab").classList.add("hidden");
+
     document.getElementById("readyTab").classList.add("hidden");
     document.getElementById("returnTab").classList.add("hidden");
 
