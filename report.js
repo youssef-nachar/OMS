@@ -3,11 +3,10 @@ function showReportsTab() {
   document.getElementById("aboutTab").classList.add("hidden");
 document.getElementById("reportConfigPage").classList.add("hidden")
 document.getElementById("dashboardHeader").style.display = "none";  
+    document.getElementById("orderCommentsTab")
+        .classList.add("hidden");
 
 document.getElementById("newOrderTab")  
-    ?.classList.add("hidden");  
-
-document.getElementById("teamNotesTab")  
     ?.classList.add("hidden");  
 
 document.getElementById("readyTab")  
