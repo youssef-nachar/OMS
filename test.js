@@ -1399,6 +1399,8 @@ function showReturnTab() {
     document.getElementById("aboutTab").classList.add("hidden");
     document.getElementById("orderCommentsTab")
         .classList.add("hidden");
+document.getElementById("reportsTab")  
+    ?.classList.add("hidden");  
 
 document.getElementById("dashboardHeader")  
     .style.display = "none";  
