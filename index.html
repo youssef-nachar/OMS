@@ -149,17 +149,14 @@
         <i class="fa-solid fa-rotate-left"></i>
         Returns
     </a>
-
-    <a href="#" id="teamNotesBtn" style="display:none;" onclick="openTeamNotesTab()">
-        <i class="fa-solid fa-users"></i>
-        Team Notes
-    </a>
-
     <a href="#" onclick="showReportsTab()">
         <i class="fa-solid fa-chart-pie"></i>
         Reports & Analytics
     </a>
-
+<a href="#" onclick="openOrderCommentsTab()">
+    <i class="fa-solid fa-comments"></i>
+    Order Comments
+</a>
     <a href="#" onclick="showAboutTab()">
         <i class="fa-solid fa-circle-info"></i>
         About OMS
@@ -988,32 +985,84 @@
     </div>
 
 </div>
-            <div id="teamNotesTab" class="hidden">
+<div id="orderCommentsTab" class="hidden">
 
-                <h2 style="margin-bottom:15px"> Team Notes</h2>
+    <div class="comments-page">
 
-                <div style="display:flex;gap:10px;margin-bottom:10px">
-                    <input id="employeeName" placeholder="Employee Name"
-                        style="padding:10px;border-radius:8px;border:1px solid #1f2937;background:#020617;color:white">
+        <div class="comments-header">
+            <div>
+                <h2>
+                    <i class="fa-solid fa-comments"></i>
+                    Order Comments Center
+                </h2>
 
-                    <input id="teamNoteInput" placeholder="Write note..."
-                        style="flex:1;padding:10px;border-radius:8px;border:1px solid #1f2937;background:#020617;color:white">
+                <p>
+                    Add, review and manage comments for any sales order.
+                </p>
+            </div>
+        </div>
 
-                    <button onclick="saveTeamNote()" style="
-            background:#22c55e;
-            border:none;
-            padding:10px 14px;
-            border-radius:8px;
-            cursor:pointer;
-            font-weight:600;
-        ">
-                        Add
-                    </button>
+        <div class="comments-card">
+
+            <div class="comments-form">
+
+                <div class="input-group">
+                    <i class="fa-solid fa-hashtag"></i>
+                    <input
+                        type="text"
+                        id="commentOrderNumber"
+                        placeholder="Order Number (SOD000123456)"
+                    >
                 </div>
 
-                <div id="teamNotesList"></div>
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input
+                        type="text"
+                        id="commentBy"
+                        placeholder="Comment By"
+                    >
+                </div>
+
+                <textarea
+                    id="orderCommentText"
+                    placeholder="Write a professional comment..."
+                ></textarea>
+
+                <button
+                    class="save-comment-btn"
+                    onclick="saveOrderComment()"
+                >
+                    <i class="fa-solid fa-paper-plane"></i>
+                    Save Comment
+                </button>
 
             </div>
+
+        </div>
+
+        <div class="comments-history-card">
+
+            <div class="history-title">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Comments History
+            </div>
+
+            <input
+                type="text"
+                id="commentSearch"
+                placeholder="Search Order Number..."
+                oninput="loadOrderComments()"
+            >
+
+            <div id="orderCommentsList"></div>
+
+        </div>
+
+    </div>
+
+</div>
+
         <div id="readyTab" class="hidden">
         
         </div>
@@ -1617,7 +1666,6 @@ CBM
     <script src="./newordertab.js"></script>
     <script src="./readytodistribute.js"></script>
     <script src="./tab.js"></script>
-    <script src="./teamnote.js"></script>
     <script src="./updateSearch.js"></script>
     <script src="./users.js"></script>
     <script src="./report.js"></script>
