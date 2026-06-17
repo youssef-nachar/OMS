@@ -89,8 +89,6 @@ loginContainer.style.display = "none";
 dashboard.classList.remove("hidden");
 
 if (role === "manager") {
-    document.getElementById("teamNotesBtn").style.display = "block";
-
     listenToOrders();
     listenToReturnedOrders();
 
@@ -223,7 +221,7 @@ dashboard.classList.remove("hidden");
 // =========================  
 // ELEMENTS  
 // =========================  
-const teamNotesBtn = document.getElementById("teamNotesBtn");  
+
 const warehouseSwitcher = document.getElementById("warehouseSwitcher");  
 const kpis = document.querySelector(".kpis");  
 const warehouseContainer = document.querySelector(".warehouse-container");  
@@ -232,7 +230,7 @@ const salesOrder = document.querySelector(".sales-order");
 // =========================  
 // RESET UI FIRST (IMPORTANT)  
 // =========================  
-if (teamNotesBtn) teamNotesBtn.classList.add("hidden");  
+
 if (warehouseSwitcher) warehouseSwitcher.classList.add("hidden");  
 if (kpis) kpis.classList.add("hidden");  
 if (warehouseContainer) warehouseContainer.classList.add("hidden");  
@@ -248,7 +246,7 @@ if (salesOrder) salesOrder.classList.add("hidden");
 if (u.role === "manager") {
 
 // إظهار عناصر المدير فقط  
-if (teamNotesBtn) teamNotesBtn.classList.remove("hidden");  
+
 if (warehouseSwitcher) warehouseSwitcher.classList.remove("hidden");  
 if (kpis) kpis.classList.remove("hidden");  
 if (warehouseContainer) warehouseContainer.classList.remove("hidden");  
@@ -1399,14 +1397,13 @@ return fetch(distributionSheetURL + "&t=" + Date.now(), {
 // }
 function showReturnTab() {
     document.getElementById("aboutTab").classList.add("hidden");
+    document.getElementById("orderCommentsTab")
+        .classList.add("hidden");
 
 document.getElementById("dashboardHeader")  
     .style.display = "none";  
 
 document.getElementById("newOrderTab")  
-    .classList.add("hidden");  
-
-document.getElementById("teamNotesTab")  
     .classList.add("hidden");  
 
 document.getElementById("readyTab")  
@@ -2346,3 +2343,117 @@ function normalizeDateOnly(dateStr) {
 
     return d.toISOString().slice(0, 10); // YYYY-MM-DD
 }
+
+function openOrderCommentsTab() {
+
+    // إخفاء جميع التابات
+    document.querySelectorAll(
+        "#newOrderTab,#returnTab,#reportsTab,#aboutTab,#readyTab,#orderCommentsTab"
+    ).forEach(tab => tab.classList.add("hidden"));
+
+    // إخفاء الداشبورد
+    document.getElementById("dashboardHeader").style.display = "none";
+
+    document.querySelector(".kpis")
+        ?.classList.add("hidden");
+
+    document.querySelector(".warehouse-container")
+        ?.classList.add("hidden");
+
+    document.querySelector(".sales-order")
+        ?.classList.add("hidden");
+
+    // إظهار التاب المطلوبة
+    document.getElementById("orderCommentsTab")
+        .classList.remove("hidden");
+
+    // تحميل التعليقات
+    loadOrderComments();
+
+    // Focus على البحث
+    setTimeout(() => {
+        document.getElementById("commentSearch")?.focus();
+    }, 200);
+}
+
+window.saveOrderComment = async function(){
+
+    const orderNo =
+        document.getElementById("commentOrderNumber").value.trim();
+
+    const comment =
+        document.getElementById("orderCommentText").value.trim();
+
+    const by =
+        document.getElementById("commentBy").value.trim();
+
+    if(!orderNo || !comment){
+        alert("Please complete all fields");
+        return;
+    }
+
+    await push(
+        ref(db,"orderComments"),
+        {
+            orderNo,
+            comment,
+            by,
+            createdAt:new Date().toLocaleString()
+        }
+    );
+
+    document.getElementById("orderCommentText").value="";
+
+    loadOrderComments();
+};
+
+window.loadOrderComments = async function(){
+
+    const container =
+        document.getElementById("orderCommentsList");
+
+    const search =
+        document.getElementById("commentSearch")
+        ?.value
+        ?.toLowerCase() || "";
+
+    const snap = await get(ref(db,"orderComments"));
+
+    if(!snap.exists()){
+        container.innerHTML=
+        "<div style='color:#94a3b8'>No comments found</div>";
+        return;
+    }
+
+    let html="";
+
+    const data = snap.val();
+
+    Object.entries(data)
+    .reverse()
+    .forEach(([id,row])=>{
+
+        if(search &&
+           !row.orderNo.toLowerCase().includes(search))
+           return;
+
+        html += `
+        <div class="comment-item">
+
+            <div class="comment-order">
+                ${row.orderNo}
+            </div>
+
+            <div class="comment-meta">
+                ${row.by || 'System'} • ${row.createdAt}
+            </div>
+
+            <div class="comment-text">
+                ${row.comment}
+            </div>
+
+        </div>`;
+    });
+
+    container.innerHTML = html;
+};
