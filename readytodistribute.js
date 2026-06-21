@@ -181,9 +181,11 @@ function saveReadyEdit() {
     const cbm = document.getElementById("editCBM").value;
     const comment = document.getElementById("editOrderComment").value.trim();
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+paths.forEach(path => {
+
+    get(ref(db, path)).then(snapshot => {
 
         snapshot.forEach(child => {
 
@@ -191,21 +193,9 @@ function saveReadyEdit() {
 
             if (order.orderNo === editingReadyOrderNo) {
 
-                update(ref(db, "orders/" + child.key), {
+                update(ref(db, `${path}/${child.key}`), {
                     boxes: Number(boxes),
                     cbm: Number(cbm)
-                }).then(() => {
-
-                    // 🔥 الحل المهم:
-                    const updatedOrder = allOrders.find(o => o.orderNo === editingReadyOrderNo);
-
-                    if (updatedOrder) {
-                        updatedOrder.boxes = Number(boxes);
-                        updatedOrder.cbm = Number(cbm);
-                    }
-
-                    renderReadyOrders(); // 🔥 تحديث مباشر بدون refresh
-
                 });
 
             }
@@ -214,6 +204,7 @@ function saveReadyEdit() {
 
     });
 
+});
     document.getElementById("readyEditModal").classList.add("hidden");
 }
 document.getElementById("readyEditModal").addEventListener("click", (e) => {
@@ -307,9 +298,11 @@ if (!company) {
     alert("Please select company");
     return;
 }
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+paths.forEach(path => {
+
+    get(ref(db, path)).then(snapshot => {
 
         snapshot.forEach(child => {
 
@@ -317,40 +310,25 @@ if (!company) {
 
             if (order.orderNo === orderNo) {
 
- update(ref(db, "orders/" + child.key), {
-    readyToDistribute: true,
-    status: "ready_to_distribute",
-    boxes: Number(boxes),
-    company: company,
-    cbm: Number(String(cbm).replace(",", ".")),
-    emailOrComment: emailOrComment, // ✅ الجديد
-    readyTime: new Date().toISOString(),
-    history: [
-        ...(order.history || []),
-        {
-            action: "ready_to_distribute",
-            date: new Date().toISOString(),
-            by: "Packing Station",
-            boxes,
-            cbm,
-            emailOrComment // optional في التاريخ
-        }
-    ]
-}).then(() => {
-
-                    // ✅ تحديث محلي فوري
-                    const localOrder = allOrders.find(o => o.orderNo === orderNo);
-
-                    if (localOrder) {
-                        localOrder.company = company;
-                        localOrder.readyToDistribute = true;
-                        localOrder.status = "ready_to_distribute";
-                        localOrder.boxes = Number(boxes);
-                        localOrder.cbm = Number(cbm);
-                    }
-
-                    // ✅ إعادة الرسم مباشرة
-                    renderReadyOrders();
+                update(ref(db, `${path}/${child.key}`), {
+                    readyToDistribute: true,
+                    status: "ready_to_distribute",
+                    boxes: Number(boxes),
+                    company: company,
+                    cbm: Number(String(cbm).replace(",", ".")),
+                    emailOrComment: emailOrComment,
+                    readyTime: new Date().toISOString(),
+                    history: [
+                        ...(order.history || []),
+                        {
+                            action: "ready_to_distribute",
+                            date: new Date().toISOString(),
+                            by: "Packing Station",
+                            boxes,
+                            cbm,
+                            emailOrComment
+                        }
+                    ]
                 });
 
             }
@@ -359,6 +337,7 @@ if (!company) {
 
     });
 
+});
     // تنظيف الحقول
     document.getElementById("readyOrderInput").value = "";
     document.getElementById("readyBoxesInput").value = "";
@@ -617,11 +596,16 @@ function distributeSelectedOrders() {
     const todayISO = new Date().toISOString();
     const todayDate = todayISO.split("T")[0];
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
+const updates = [];
 
-    get(ordersRef).then(snapshot => {
+Promise.all(
+    paths.map(path => get(ref(db, path)))
+).then(results => {
 
-        const updates = [];
+    results.forEach((snapshot, index) => {
+
+        const path = paths[index];
 
         snapshot.forEach(child => {
 
@@ -629,78 +613,52 @@ function distributeSelectedOrders() {
 
             if (selectedOrders.includes(order.orderNo)) {
 
-    const currentBatch =
-        getCurrentBatch(order.company || "LMD");
-
-                const updateData = {
-
-                    status: "distributed",
-                    readyToDistribute: false,
-
-                    distributedDate: todayDate,
-
-                    batch: {
-    type: currentBatch.type,
-    name: currentBatch.name,
-    date: todayDate,
-    time: todayISO
-},
-
-                    distributedTime: todayISO,
-
-                    history: [
-                        ...(order.history || []),
-                        {
-                            action: "distributed",
-                            date: todayISO,
-                            by: "Distribution",
-                            batch: currentBatch.name,
-batchType: currentBatch.type
-                        }
-                    ]
-                };
+                const currentBatch =
+                    getCurrentBatch(order.company || "LMD");
 
                 updates.push(
-                    update(ref(db, "orders/" + child.key), updateData)
+                    update(ref(db, `${path}/${child.key}`), {
+
+                        status: "distributed",
+                        readyToDistribute: false,
+
+                        distributedDate: todayDate,
+
+                        batch: {
+                            type: currentBatch.type,
+                            name: currentBatch.name,
+                            date: todayDate,
+                            time: todayISO
+                        },
+
+                        distributedTime: todayISO,
+
+                        history: [
+                            ...(order.history || []),
+                            {
+                                action: "distributed",
+                                date: todayISO,
+                                by: "Distribution",
+                                batch: currentBatch.name,
+                                batchType: currentBatch.type
+                            }
+                        ]
+                    })
                 );
 
-                // ✅ تحديث محلي مباشر
-                const localOrder = allOrders.find(
-                    o => o.orderNo === order.orderNo
-                );
-
-                if (localOrder) {
-                    localOrder.company = company;
-                    localOrder.status = "distributed";
-                    localOrder.readyToDistribute = false;
-
-                    localOrder.distributedDate = todayDate;
-
-                    localOrder.batch = {
-    type: currentBatch.type,
-    name: currentBatch.name,
-    date: todayDate,
-    time: todayISO
-};
-
-                    localOrder.distributedTime = todayISO;
-                }
-
-                // ✅ أهم إصلاح للـ KPI
-                distributedOrdersMap[order.orderNo] = {
-                    date: todayDate,
-                    company: order.company || "LMD"
-                };
             }
+
         });
 
-        return Promise.all(updates);
+    });
 
-    }).then(() => {
+    return Promise.all(updates);
 
-        renderReadyOrders();
-        renderBatchesTable();
-        updateDashboard();
+}).then(() => {
+
+    renderReadyOrders();
+    renderBatchesTable();
+    updateDashboard();
 
         console.log("✅ Orders distributed successfully");
 
@@ -730,20 +688,25 @@ function initReadyToDistribute() {
 }
 function moveToReady(orderNo) {
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+paths.forEach(path => {
+
+    get(ref(db, path)).then(snapshot => {
 
         snapshot.forEach(child => {
 
             const order = child.val();
 
             if (order.orderNo === orderNo) {
-const warehouse = order.warehouse || order.store || "";
-                update(ref(db, "orders/" + child.key), {
+
+                const warehouse =
+                    order.warehouse || order.store || "";
+
+                update(ref(db, `${path}/${child.key}`), {
                     readyToDistribute: true,
                     warehouse: warehouse,
-                    status: "ready_to_distribute", // ✅ مهم جداً
+                    status: "ready_to_distribute",
                     readyTime: new Date().toISOString(),
                     history: [
                         ...(order.history || []),
@@ -753,8 +716,6 @@ const warehouse = order.warehouse || order.store || "";
                             by: "Packing Station"
                         }
                     ]
-                }).then(() => {
-                    renderReadyOrders(); // ✅ تحديث مباشر
                 });
 
             }
@@ -762,6 +723,8 @@ const warehouse = order.warehouse || order.store || "";
         });
 
     });
+
+});
 }
 function isDistributed(order) {
     return (
@@ -1273,9 +1236,11 @@ if (statusFilter) {
 }
 function markOrderChecked(orderNo) {
 
-    const ordersRef = ref(db, "orders");
+    const paths = ["orders", "orders_new"];
 
-    get(ordersRef).then(snapshot => {
+paths.forEach(path => {
+
+    get(ref(db, path)).then(snapshot => {
 
         snapshot.forEach(child => {
 
@@ -1283,29 +1248,17 @@ function markOrderChecked(orderNo) {
 
             if (order.orderNo === orderNo) {
 
-update(ref(db, "orders/" + child.key), {
-    status: "checked",
-    readyToDistribute: true,   // 🔥 ADD THIS
-    history: [
-        ...(order.history || []),
-        {
-            action: "checked",
-            date: new Date().toISOString(),
-            by: "Checker"
-        }
-    ]
-}).then(() => {
-
-                    const localOrder = allOrders.find(
-                        o => o.orderNo === orderNo
-                    );
-
-if (localOrder) {
-    localOrder.status = "checked";
-    localOrder.readyToDistribute = true;
-}
-                    renderReadyOrders();
-                       listenToOrders();
+                update(ref(db, `${path}/${child.key}`), {
+                    status: "checked",
+                    readyToDistribute: true,
+                    history: [
+                        ...(order.history || []),
+                        {
+                            action: "checked",
+                            date: new Date().toISOString(),
+                            by: "Checker"
+                        }
+                    ]
                 });
 
             }
@@ -1314,6 +1267,7 @@ if (localOrder) {
 
     });
 
+});
 }
 
 function setStatusFilter(type) {
