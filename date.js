@@ -1,30 +1,28 @@
     function getEffectiveDate(order) {
 
-    // Distributed
-    if (order.status === "distributed") {
-        return distributedOrdersMap[order.orderNo]?.date;
-    }
+    let date = null;
 
-    // Ready To Distribute / Checked
-    if (
+    if (order.status === "distributed") {
+        date = distributedOrdersMap[order.orderNo]?.date;
+    }
+    else if (
         order.status === "ready_to_distribute" ||
         order.status === "checked"
     ) {
-        return order.readyTime
-            ? order.readyTime.slice(0, 10)
-            : order.date;
+        date = order.readyTime || order.date;
+    }
+    else if (order.status === "completed") {
+        const firstPackedWH =
+            order.warehouses.find(w => w.packed);
+
+        date = firstPackedWH?.packingTime || order.date;
+    }
+    else {
+        date = order.date;
     }
 
-    // Completed (In-Packing)
-    if (order.status === "completed") {
-        const firstPackedWH = order.warehouses.find(w => w.packed);
-        return firstPackedWH?.packingTime || order.date;
-    }
-
-    // Pending / Partial
-    return order.date;
+    return formatDateForInput(date);
 }
-
     function initDate() {
         const today = new Date().toISOString().slice(0, 10);
 
@@ -36,21 +34,24 @@
 
     function applyFilters() {
 
-        const from = dateFrom.value || null;
-        const to = dateTo.value || null;
+    const from = dateFrom.value || null;
+    const to = dateTo.value || null;
 
-        return allOrders.filter(o => {
+    return allOrders.filter(o => {
 
-            const dateToCheck = getEffectiveDate(o);
+        let dateToCheck = getEffectiveDate(o);
 
-            if (!dateToCheck) return false;
-            if (from && dateToCheck < from) return false;
-            if (to && dateToCheck > to) return false;
+        if (!dateToCheck) return false;
 
-            return true;
-        });
-    }
+        // 🔥 تحويل أي تاريخ فيه وقت إلى تاريخ فقط
+        dateToCheck = formatDateForInput(dateToCheck);
 
+        if (from && dateToCheck < from) return false;
+        if (to && dateToCheck > to) return false;
+
+        return true;
+    });
+}
     window.QuickDate = function (type) {
     const from = document.getElementById("dateFrom");
     const to = document.getElementById("dateTo");
