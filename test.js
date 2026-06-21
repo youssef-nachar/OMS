@@ -466,7 +466,7 @@ orderSortMode = "newest";
 
 // 🔹 تحديث الداشبورد    
 updateDashboard();  
-updateFooterStats();
+
 
 }
 
@@ -494,7 +494,6 @@ orderSortMode = "newest";
 
 // 🔹 تحديث الداشبورد    
 updateDashboard();  
-updateFooterStats();
 
 }
 let lastDisplayedOrders = [];
@@ -693,8 +692,9 @@ tooltipText = `
 }
 else if (w.packed) {
 tooltipText = `
-    Received: ${w.receivedTime || "-"} <br>
-    Packed: ${w.packingTime || "-"}
+Received: ${formatLebanonDateTime(w.receivedTime)}
+<br>
+Packed: ${formatLebanonDateTime(w.packingTime)}
 `;
 }
 else {
@@ -2459,3 +2459,18 @@ window.loadOrderComments = async function(){
 
     container.innerHTML = html;
 };
+
+function formatLebanonDateTime(dateValue) {
+    if (!dateValue) return "-";
+
+    return new Date(dateValue).toLocaleString("en-GB", {
+        timeZone: "Asia/Beirut",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    });
+                  }
