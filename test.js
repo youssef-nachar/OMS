@@ -152,10 +152,13 @@ const rows = parsed.data;
 
 if (!rows.length) return;  
 
-const headers = rows.shift().map(h => h.toLowerCase().trim());  
+const headers = rows.shift().map(h =>
+    h.toString().toLowerCase().trim().replace(/\s+/g, " ")
+);
 
-const ORDER_COL = headers.indexOf("order #"); //  lowercase  
-
+const ORDER_COL = headers.findIndex(h =>
+    h.includes("order") && h.includes("#")
+);
 if (ORDER_COL === -1) {  
     console.warn("Canceled column not found", headers);  
     return;  
