@@ -165,7 +165,14 @@ function getCurrentBatch(company) {
     };
 }
 
+async function hasOpenComment(orderNo) {
 
+    const orderKey = orderNo.replace(/[.#$[\]]/g, "");
+
+    const metaSnap = await get(ref(db, `orderCommentsMeta/${orderKey}`));
+
+    return !(metaSnap.exists() && metaSnap.val().closed === true);
+}
 function openReadyEditModal(orderNo, boxes, cbm) {
 
     editingReadyOrderNo = orderNo;
@@ -281,10 +288,29 @@ function exportReadyToExcel() {
     link.click();
     document.body.removeChild(link);
 }
-function moveToReadyFromInputs() {
+async function moveToReadyFromInputs() {
+    
 const emailOrComment = document.getElementById("readyEmailInput").value.trim();
 const company = document.getElementById("readyCompanyInput").value.trim();
     const orderNo = document.getElementById("readyOrderInput").value.trim().toUpperCase();
+const orderKey = orderNo.replace(/[.#$[\]]/g, "");
+
+const commentsSnap = await get(ref(db, "orderComments"));
+const order = allOrders.find(o => o.orderNo === orderNo);
+if (!orderNo) return;
+
+if (order?.status === "pending") {
+    alert("❌ Cannot move PENDING order to Ready");
+    return;
+}
+
+if (await hasOpenComment(orderNo)) {
+showGlobalModal("❌ This order has an OPEN comment. Please close it before proceeding.");
+return;
+}
+if (!(await canMoveToReady(orderNo, order?.status))) {
+    return;
+}
     const boxes = document.getElementById("readyBoxesInput").value.trim();
     const cbm = document.getElementById("readyCBMInput").value.trim();
 
@@ -300,44 +326,39 @@ if (!company) {
 }
     const paths = ["orders", "orders_new"];
 
-paths.forEach(path => {
+for (const path of paths) {
 
-    get(ref(db, path)).then(snapshot => {
+    const snapshot = await get(ref(db, path));
 
-        snapshot.forEach(child => {
+    snapshot.forEach(child => {
 
-            const order = child.val();
+        const order = child.val();
 
-            if (order.orderNo === orderNo) {
+        if (order.orderNo === orderNo) {
 
-                update(ref(db, `${path}/${child.key}`), {
-                    readyToDistribute: true,
-                    status: "ready_to_distribute",
-                    boxes: Number(boxes),
-                    company: company,
-                    cbm: Number(String(cbm).replace(",", ".")),
-                    emailOrComment: emailOrComment,
-                    readyTime: new Date().toISOString(),
-                    history: [
-                        ...(order.history || []),
-                        {
-                            action: "ready_to_distribute",
-                            date: new Date().toISOString(),
-                            by: "Packing Station",
-                            boxes,
-                            cbm,
-                            emailOrComment
-                        }
-                    ]
-                });
-
-            }
-
-        });
-
+            update(ref(db, `${path}/${child.key}`), {
+                readyToDistribute: true,
+                status: "ready_to_distribute",
+                boxes: Number(boxes),
+                company: company,
+                cbm: Number(String(cbm).replace(",", ".")),
+                emailOrComment: emailOrComment,
+                readyTime: new Date().toISOString(),
+                history: [
+                    ...(order.history || []),
+                    {
+                        action: "ready_to_distribute",
+                        date: new Date().toISOString(),
+                        by: "Packing Station",
+                        boxes,
+                        cbm,
+                        emailOrComment
+                    }
+                ]
+            });
+        }
     });
-
-});
+}
     // تنظيف الحقول
     document.getElementById("readyOrderInput").value = "";
     document.getElementById("readyBoxesInput").value = "";
@@ -686,8 +707,16 @@ function initReadyToDistribute() {
         // this.value = "";
     });
 }
-function moveToReady(orderNo) {
+async function moveToReady(orderNo) {
+const orderKey = orderNo.replace(/[.#$[\]]/g, "");
 
+// هل يوجد أي Comment لهذا الطلب؟
+const commentsSnap = await get(ref(db, "orderComments"));
+const order = allOrders.find(o => o.orderNo === orderNo);
+
+if (!(await canMoveToReady(orderNo, order?.status))) {
+    return;
+}
     const paths = ["orders", "orders_new"];
 
 paths.forEach(path => {
@@ -725,6 +754,22 @@ paths.forEach(path => {
     });
 
 });
+}
+async function canMoveToReady(orderNo, orderStatus) {
+
+    // ❌ ممنوع إذا pending
+    if (orderStatus === "pending") {
+        alert(`Order ${orderNo} is still PENDING`);
+        return false;
+    }
+
+    // ❌ ممنوع إذا عنده comment مفتوح
+    if (await hasOpenComment(orderNo)) {
+        alert(`Order ${orderNo} has an OPEN comment. Close it first.`);
+        return false;
+    }
+
+    return true;
 }
 function isDistributed(order) {
     return (
@@ -1234,42 +1279,49 @@ if (statusFilter) {
 
     renderReadyOrders();
 }
-function markOrderChecked(orderNo) {
+async function markOrderChecked(orderNo) {
+const order = allOrders.find(o => o.orderNo === orderNo);
+
+if (order?.status === "pending") return;
+
+if (await hasOpenComment(orderNo)) {
+    alert(`Order ${orderNo} has an OPEN comment. Close it first.`);
+    return;
+}
 
     const paths = ["orders", "orders_new"];
 
-paths.forEach(path => {
+    paths.forEach(path => {
+        get(ref(db, path)).then(snapshot => {
+            snapshot.forEach(child => {
+                const order = child.val();
 
-    get(ref(db, path)).then(snapshot => {
-
-        snapshot.forEach(child => {
-
-            const order = child.val();
-
-            if (order.orderNo === orderNo) {
-
-                update(ref(db, `${path}/${child.key}`), {
-                    status: "checked",
-                    readyToDistribute: true,
-                    history: [
-                        ...(order.history || []),
-                        {
-                            action: "checked",
-                            date: new Date().toISOString(),
-                            by: "Checker"
-                        }
-                    ]
-                });
-
-            }
-
+                if (order.orderNo === orderNo) {
+                    update(ref(db, `${path}/${child.key}`), {
+                        status: "checked",
+                        readyToDistribute: true,
+                        history: [
+                            ...(order.history || []),
+                            {
+                                action: "checked",
+                                date: new Date().toISOString(),
+                                by: "Checker"
+                            }
+                        ]
+                    });
+                }
+            });
         });
-
     });
-
-});
+}
+function showGlobalModal(message) {
+    document.getElementById("globalModalText").innerText = message;
+    document.getElementById("globalModal").classList.remove("hidden");
 }
 
+function closeGlobalModal() {
+    document.getElementById("globalModal").classList.add("hidden");
+}
 function setStatusFilter(type) {
 
     if (
