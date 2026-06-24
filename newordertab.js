@@ -1,6 +1,8 @@
 let recentOrders = [];
 let selectedFromDate = "";
 let selectedToDate = "";
+let unrepliedOnly = false;
+let ordersWithReplies = new Set();
 function showNewOrderTab() {
 document.getElementById("dashboardHeader").style.display="none"
     const currentWarehouse = localStorage.getItem("currentWarehouse");
@@ -360,7 +362,12 @@ const sortedOrders = [...recentOrders].sort((a, b) => {
 
 let filteredOrders = getBaseFilteredOrders();
 filteredOrders = filteredOrders.filter(order => {
+if (unrepliedOnly) {
+    const hasComment = order.comment && order.comment.trim() !== "";
+    const hasReply = ordersWithReplies.has(order.orderNo);
 
+    if (!hasComment || hasReply) return false;
+}
 if (selectedDateFilter) {
     const orderDate = getOrderDate(order);
 
@@ -565,19 +572,41 @@ const isPacking =
 
             </div>
 
-            <!-- Comment -->
-            ${order.comment ? `
-            <div style="
-                font-size:12px;
-                color:#38bdf8;
-                background:#020617;
-                padding:6px 8px;
-                border-radius:8px;
-                border:1px dashed #1f2937;
-            ">
-                💬 ${order.comment}
-            </div>
-            ` : ""}
+${order.comment ? `
+<div style="
+    font-size:12px;
+    color:#38bdf8;
+    background:#020617;
+    padding:8px;
+    border-radius:8px;
+    border:1px dashed #1f2937;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+">
+
+    <div>
+        💬 ${order.comment}
+    </div>
+
+    <button
+        onclick="openCommentModal('${order.orderNo}', \`${order.comment.replace(/`/g, "")}\`)"
+        style="
+            align-self:flex-start;
+            background:#0ea5e9;
+            border:none;
+            padding:4px 10px;
+            border-radius:6px;
+            font-size:11px;
+            color:white;
+            cursor:pointer;
+            font-weight:600;
+        ">
+        Reply
+    </button>
+
+</div>
+` : ""}
 
         </div>
         `;
@@ -747,6 +776,19 @@ function updateFilterButtonsCounts() {
 }
 
 function listenToOrders() {
+    get(ref(db, "orderComments")).then(snap => {
+
+    const data = snap.val() || {};
+
+    ordersWithReplies.clear();
+
+    Object.values(data).forEach(r => {
+        if (r.type === "reply" && r.orderNo) {
+            ordersWithReplies.add(r.orderNo);
+        }
+    });
+
+});
     const ordersRef = ref(db, "orders");
 const newOrdersRef = ref(db, "orders_new");
 
@@ -1700,3 +1742,19 @@ document.getElementById("warehouseDropdown").addEventListener("change", function
     selectedWarehouseFilter = this.value;
     renderRecentOrders();
 });
+function toggleUnrepliedFilter() {
+
+    unrepliedOnly = !unrepliedOnly;
+
+    const btn = document.getElementById("unrepliedToggleBtn");
+
+    if (unrepliedOnly) {
+        btn.style.background = "#f59e0b";
+        btn.textContent = "Showing Unreplied Comments Only";
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = "Show Unreplied Comments Only";
+    }
+
+    renderRecentOrders();
+}
