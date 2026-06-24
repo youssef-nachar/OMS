@@ -20,6 +20,7 @@ let readyToReturnWarehouseFilter = "";
 let pendingReturnOrders = [];
 let currentOriginalComment = "";
 let currentOriginalDate = null;
+let currentCommentClosed = false;
 function cleanOrderKey(orderNo) {
     return orderNo.replace(/#/g, "");
 }
@@ -858,9 +859,21 @@ let currentCommentOrder = null;
 async function openCommentModal(orderNo, comment) {
 
     currentCommentOrder = orderNo;
- currentOriginalComment = comment;
-currentOriginalDate = Date.now(); // أو من الداتا لو موجود
+    currentOriginalComment = comment;
+    currentOriginalDate = Date.now();
+
     document.getElementById("commentModalTitle").innerText = orderNo;
+
+    // ✅ مفتاح صالح لـ Firebase
+    const orderKey = orderNo.replace(/[.#$[\]]/g, "");
+
+    const closedSnap = await get(
+        ref(db, `orderCommentsMeta/${orderKey}`)
+    );
+
+    currentCommentClosed =
+        closedSnap.exists() &&
+        closedSnap.val().closed === true;
 
     const snap = await get(ref(db, "orderComments"));
 
@@ -875,7 +888,22 @@ currentOriginalDate = Date.now(); // أو من الداتا لو موجود
     }
 
     renderChat(currentOriginalComment, replies);
+const closeBtn = document.getElementById("closeCommentBtn");
 
+if (closeBtn) {
+
+    if (currentCommentClosed) {
+        closeBtn.innerText = "✔ Closed";
+        closeBtn.style.background = "#22c55e";
+        closeBtn.disabled = true;
+        closeBtn.style.cursor = "not-allowed";
+    } else {
+        closeBtn.innerText = "🔒 Close Comment";
+        closeBtn.style.background = "#ef4444";
+        closeBtn.disabled = false;
+        closeBtn.style.cursor = "pointer";
+    }
+}
     document.getElementById("commentModal")
         .classList.remove("hidden");
 }
@@ -952,6 +980,7 @@ function renderChat(comment, replies) {
         ">
             No replies yet
         </div>
+        
         `;
     }
 
@@ -1004,6 +1033,40 @@ function renderChat(comment, replies) {
 
     container.innerHTML = html;
 }
+function getOrderKey(orderNo) {
+    return orderNo.replace(/[.#$[\]]/g, "");
+}
+async function closeCommentAndLockUI() {
+
+    if (!currentCommentOrder) return;
+
+    const orderKey = currentCommentOrder.replace(/[.#$[\]]/g, "");
+
+    await update(
+        ref(db, `orderCommentsMeta/${orderKey}`),
+        {
+            closed: true,
+            closedAt: Date.now(),
+            closedBy:
+                localStorage.getItem("currentWarehouse") ||
+                "Manager"
+        }
+    );
+
+    currentCommentClosed = true;
+
+    // 🔥 UI update بدل alert
+    const btn = document.getElementById("closeCommentBtn");
+
+    btn.innerText = "✔ Closed";
+    btn.style.background = "#22c55e";
+    btn.disabled = true;
+    btn.style.cursor = "not-allowed";
+    btn.style.boxShadow = "none";
+
+    // optional: toast/modal بدل alert
+    showGlobalModal("✔ Comment closed successfully");
+}
 function closeCommentModal() {
 
     document.getElementById(
@@ -1026,6 +1089,11 @@ function formatCommentDate(timestamp) {
 }
 async function saveCommentReply() {
 
+    if (currentCommentClosed) {
+        alert("This comment is closed");
+        return;
+    }
+
     const input = document.getElementById("commentReply");
     const text = input.value.trim();
 
@@ -1041,16 +1109,19 @@ async function saveCommentReply() {
 
     input.value = "";
 
-    // 🔥 إعادة تحميل مع الحفاظ على original
+    const replies = await getReplies();
+    renderChat(currentOriginalComment, replies);
+}
+async function getReplies() {
     const snap = await get(ref(db, "orderComments"));
 
-    const replies = Object.values(snap.val() || {})
+    if (!snap.exists()) return [];
+
+    return Object.values(snap.val())
         .filter(r =>
             r.orderNo === currentCommentOrder &&
             r.type === "reply"
         );
-
-    renderChat(currentOriginalComment, replies);
 }
 function appendReply(text, by) {
 
