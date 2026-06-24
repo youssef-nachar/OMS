@@ -13,6 +13,7 @@ const users = [
     { username: "beeslineUser", password: "123456", warehouse: "BEESLINE", role: "user" },
 
     // 🔵 Packing Station User
-    { username: "packingUser", password: "123456", warehouse: "Packing Station", role: "packing" }
-
+    { username: "packingUser", password: "123456", warehouse: "Packing Station", role: "packing" },
+    //myholdal user
+{ username: "myholdal", password: "123456", warehouse: "MYHOLDAL TEAM", role: "viewer" }
 ];
