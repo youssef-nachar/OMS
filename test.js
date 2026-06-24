@@ -18,6 +18,8 @@ let localOrders = [];
 let currentReportType = "";
 let readyToReturnWarehouseFilter = "";
 let pendingReturnOrders = [];
+let currentOriginalComment = "";
+let currentOriginalDate = null;
 function cleanOrderKey(orderNo) {
     return orderNo.replace(/#/g, "");
 }
@@ -733,19 +735,48 @@ ${type === "distributed" ? `
 </td>
 ` : ""}
 
-<td style="color:#38bdf8;font-size:12px"> 
-                <td style="color:#38bdf8;font-size:12px">  
-${order.comment ? `
+<td style="padding:8px">
 
-<div style="  
-    margin-top:5px;  
-    color:#22c55e;  
-    font-size:11px;  
-">  
-💬 ${order.comment}  
-</div>  
-` : ""}  
-</td>  
+    <div style="
+        display:flex;
+        align-items:center;
+        gap:8px;
+    ">
+
+        <span style="
+            color:#22c55e;
+            font-size:12px;
+            max-width:180px;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+            display:inline-block;
+        ">
+            ${order.comment || "-"}
+        </span>
+
+        ${order.comment ? `
+            <button
+                onclick="openCommentModal(
+                    '${order.orderNo}',
+                    \`${(order.comment || "").replace(/`/g,"\\`")}\`
+                )"
+                title="View Full Comment"
+                style="
+                    background:transparent;
+                    border:none;
+                    cursor:pointer;
+                    font-size:18px;
+                    padding:0;
+                "
+            >
+<i class="fas fa-expand"></i>        
+    </button>
+        ` : ""}
+
+    </div>
+
+</td>
                 </tr>  
                 `;  
             }).join("")}  
@@ -820,6 +851,235 @@ if (!showOnlyBacklog) {
 
     document.getElementById("orderDetails").classList.remove("hidden");  
 }  
+
+
+let currentCommentOrder = null;
+
+async function openCommentModal(orderNo, comment) {
+
+    currentCommentOrder = orderNo;
+ currentOriginalComment = comment;
+currentOriginalDate = Date.now(); // أو من الداتا لو موجود
+    document.getElementById("commentModalTitle").innerText = orderNo;
+
+    const snap = await get(ref(db, "orderComments"));
+
+    let replies = [];
+
+    if (snap.exists()) {
+        replies = Object.values(snap.val())
+            .filter(r =>
+                r.orderNo === orderNo &&
+                r.type === "reply"
+            );
+    }
+
+    renderChat(currentOriginalComment, replies);
+
+    document.getElementById("commentModal")
+        .classList.remove("hidden");
+}
+function renderChat(comment, replies) {
+
+    const container = document.getElementById("commentModalText");
+
+    let html = "";
+
+    // =========================
+    // ORIGINAL COMMENT
+    // =========================
+    html += `
+    <div style="
+        background:#0f172a;
+        border:1px solid #1e293b;
+        border-radius:14px;
+        padding:14px;
+        margin-bottom:15px;
+    ">
+
+        <div style="
+            font-size:12px;
+            color:#38bdf8;
+            font-weight:700;
+            margin-bottom:6px;
+        ">
+            ORIGINAL COMMENT
+        </div>
+
+        <div style="
+            color:white;
+            font-size:14px;
+            line-height:1.5;
+        ">
+            ${comment || "-"}
+        </div>
+
+        <div style="
+            margin-top:8px;
+            font-size:11px;
+            color:#64748b;
+        ">
+            ${formatCommentDate(currentOriginalDate || Date.now())}
+        </div>
+
+    </div>
+    `;
+
+    // =========================
+    // REPLIES TITLE
+    // =========================
+    html += `
+    <div style="
+        font-size:12px;
+        color:#94a3b8;
+        margin-bottom:10px;
+        font-weight:600;
+    ">
+        REPLIES (${replies.length})
+    </div>
+    `;
+
+    // =========================
+    // REPLIES LIST (TIMELINE)
+    // =========================
+    if (replies.length === 0) {
+
+        html += `
+        <div style="
+            color:#64748b;
+            font-size:13px;
+            padding:10px;
+        ">
+            No replies yet
+        </div>
+        `;
+    }
+
+    replies.forEach(r => {
+
+        html += `
+        <div style="
+            background:#111827;
+            border:1px solid #1f2937;
+            border-radius:12px;
+            padding:12px;
+            margin-bottom:10px;
+        ">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:6px;
+            ">
+
+                <div style="
+                    font-size:12px;
+                    color:#22c55e;
+                    font-weight:600;
+                ">
+                    ${r.by || "User"}
+                </div>
+
+                <div style="
+                    font-size:10px;
+                    color:#64748b;
+                ">
+                    ${formatCommentDate(r.createdAt)}
+                </div>
+
+            </div>
+
+            <div style="
+                color:#e2e8f0;
+                font-size:14px;
+                line-height:1.4;
+            ">
+                ${r.comment}
+            </div>
+
+        </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+function closeCommentModal() {
+
+    document.getElementById(
+        "commentModal"
+    ).classList.add("hidden");
+}
+function formatCommentDate(timestamp) {
+
+    if (!timestamp) return "";
+
+    const date = new Date(timestamp);
+
+    return date.toLocaleString("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+}
+async function saveCommentReply() {
+
+    const input = document.getElementById("commentReply");
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    await push(ref(db, "orderComments"), {
+        orderNo: currentCommentOrder,
+        comment: text,
+        type: "reply",
+        by: localStorage.getItem("currentWarehouse") || "Manager",
+        createdAt: Date.now()
+    });
+
+    input.value = "";
+
+    // 🔥 إعادة تحميل مع الحفاظ على original
+    const snap = await get(ref(db, "orderComments"));
+
+    const replies = Object.values(snap.val() || {})
+        .filter(r =>
+            r.orderNo === currentCommentOrder &&
+            r.type === "reply"
+        );
+
+    renderChat(currentOriginalComment, replies);
+}
+function appendReply(text, by) {
+
+    const container = document.getElementById("commentModalText");
+
+    container.innerHTML += `
+        <div style="
+            align-self:flex-end;
+            background:linear-gradient(135deg,#22c55e,#16a34a);
+            color:white;
+            padding:12px;
+            border-radius:14px;
+            max-width:85%;
+            margin-top:10px;
+        ">
+            ${text}
+        </div>
+    `;
+
+    container.scrollTop = container.scrollHeight;
+}
+document.getElementById("commentReply")
+.addEventListener("keydown", function(e) {
+
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        saveCommentReply();
+    }
+});
 function toggleBacklogView(value) {  
     showOnlyBacklog = value;  
     updateLastOrderDetailsView();  
@@ -2477,3 +2737,10 @@ function formatLebanonDateTime(dateValue) {
         hour12: false
     });
                   }
+window.addEventListener("click", function (event) {
+    const modal = document.getElementById("commentModal");
+
+    if (event.target === modal) {
+        modal.classList.add("hidden");
+    }
+});
