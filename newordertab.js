@@ -4,13 +4,21 @@ let selectedToDate = "";
 let unrepliedOnly = false;
 let ordersWithReplies = new Set();
 function showNewOrderTab() {
-document.getElementById("dashboardHeader").style.display="none"
-    const currentWarehouse = localStorage.getItem("currentWarehouse");
 
-    if (currentWarehouse === "Packing Station") {        
+    const dashboardHeader = document.getElementById("dashboardHeader");
+    if (dashboardHeader) dashboardHeader.style.display = "none";
+
+    const currentWarehouse = localStorage.getItem("currentWarehouse");
+    const role = localStorage.getItem("userRole");
+
+    if (currentWarehouse === "Packing Station" || role === "viewer") {        
+
         const searchInput = document.getElementById("newOrderSearch");
-        document.getElementById("hashtag").style.display = "none";
-        document.getElementById("newOrderNumber").style.display = "none";
+        const hashtag = document.getElementById("hashtag");
+        const orderNumber = document.getElementById("newOrderNumber");
+
+        if (hashtag) hashtag.style.display = "none";
+        if (orderNumber) orderNumber.style.display = "none";
     }
     document.querySelectorAll(".main > div").forEach(div => {
         if (div.id !== "newOrderTab") div.classList.add("hidden");
@@ -526,8 +534,8 @@ if (role === "manager") {
 }
 const isPacking = 
     (currentWarehouse === "Packing Station" || role === "manager") 
-    && !w.packed;
-
+    && !w.packed
+    && role !== "viewer";
             return `
                     <div style="
                         background:#0f172a;
@@ -776,6 +784,12 @@ function updateFilterButtonsCounts() {
 }
 
 function listenToOrders() {
+    const rawWarehouse = (localStorage.getItem("currentWarehouse") || "").trim().toUpperCase();
+
+const isAllWarehouse =
+    rawWarehouse === "ALL" ||
+    rawWarehouse === "MYHOLDAL TEAM" ||
+    rawWarehouse === "MYHOLDAL USER";
     get(ref(db, "orderComments")).then(snap => {
 
     const data = snap.val() || {};
@@ -811,27 +825,32 @@ const firebaseOrders = [...list1, ...list2];
 
         let mergedOrders = mergeOrdersByNumber(firebaseOrders);
 
-        if (role === "manager") {
+if (role === "manager" || isAllWarehouse) {
+    allOrders = mergedOrders;
+}
+     else if (currentWarehouse === "PACKING STATION") {
             allOrders = mergedOrders;
         }
-        else if (currentWarehouse === "PACKING STATION") {
-            allOrders = mergedOrders;
-        }
-        else {
-            allOrders = mergedOrders
-                .filter(order =>
-                    order.warehouses?.some(w =>
-                        normalizeWarehouseName(w.base) === normalizeWarehouseName(currentWarehouse)
-                    )
+        
+else {
+    if (isAllWarehouse) {
+    allOrders = mergedOrders;
+} 
+    else {
+        allOrders = mergedOrders
+            .filter(order =>
+                order.warehouses?.some(w =>
+                    normalizeWarehouseName(w.base) === normalizeWarehouseName(currentWarehouse)
                 )
-                .map(order => ({
-                    ...order,
-                    warehouses: order.warehouses.filter(w =>
-                        normalizeWarehouseName(w.base) === normalizeWarehouseName(currentWarehouse)
-                    )
-                }));
-        }
-
+            )
+            .map(order => ({
+                ...order,
+                warehouses: order.warehouses.filter(w =>
+                    normalizeWarehouseName(w.base) === normalizeWarehouseName(currentWarehouse)
+                )
+            }));
+    }
+}
         allOrders = allOrders.sort((a, b) =>
             new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)
         );
@@ -1404,6 +1423,8 @@ function markInPacking(orderNo) {
 
 }
 function markWarehousePacking(orderNo, warehouseName) {
+    const role = localStorage.getItem("userRole");
+if (role === "viewer") return;
     const order = allOrders.find(o => o.orderNo === orderNo);
 
     if (!order ||
@@ -1758,3 +1779,4 @@ function toggleUnrepliedFilter() {
 
     renderRecentOrders();
 }
+
