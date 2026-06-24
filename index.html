@@ -1063,9 +1063,7 @@
 
 </div>
 
-        <div id="readyTab" class="hidden">
-        
-        </div>
+        <div id="readyTab" class="hidden">  </div>
 <div id="commentModal" class="hidden" style="
     position:fixed;
     inset:0;
@@ -1098,8 +1096,9 @@
             justify-content:space-between;
             align-items:center;
         ">
+
             <div>
-                <div style="font-size:14px;color:#94a3b8;">Order</div>
+                <div style="font-size:12px;color:#94a3b8;">Order</div>
                 <div id="commentModalTitle" style="
                     font-size:18px;
                     font-weight:700;
@@ -1108,15 +1107,21 @@
             </div>
 
             <button onclick="closeCommentModal()" style="
+                width:38px;
+                height:38px;
                 background:#1e293b;
                 border:none;
                 color:white;
-                padding:8px 12px;
-                border-radius:8px;
+                border-radius:10px;
                 cursor:pointer;
-            ">
+                font-size:16px;
+                transition:.2s;
+            " onmouseover="this.style.background='#334155'"
+               onmouseout="this.style.background='#1e293b'">
+
                 ✕
             </button>
+
         </div>
 
         <!-- CONTENT -->
@@ -1129,13 +1134,50 @@
             gap:12px;
         "></div>
 
-        <!-- INPUT -->
+        <!-- FOOTER -->
         <div style="
             border-top:1px solid #1e293b;
             padding:14px;
             background:#0b1220;
         ">
 
+            <!-- CLOSE + TITLE ROW -->
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:10px;
+            ">
+
+                <div style="
+                    font-size:13px;
+                    color:#94a3b8;
+                ">
+                    Reply to this order
+                </div>
+
+                <button id="closeCommentBtn"
+                    onclick="closeCommentAndLockUI()"
+                    style="
+                        padding:8px 12px;
+                        border-radius:10px;
+                        border:none;
+                        font-weight:700;
+                        cursor:pointer;
+                        transition:.2s;
+                        background:#ef4444;
+                        color:white;
+                        box-shadow:0 10px 20px rgba(239,68,68,.25);
+                    "
+                    onmouseover="this.style.transform='scale(1.05)'"
+                    onmouseout="this.style.transform='scale(1)'"
+                >
+                    🔒 Close Comment
+                </button>
+
+            </div>
+
+            <!-- INPUT -->
             <textarea
                 id="commentReply"
                 placeholder="Write a reply..."
@@ -1157,6 +1199,7 @@
                 justify-content:flex-end;
                 margin-top:10px;
             ">
+
                 <button onclick="saveCommentReply()" style="
                     background:linear-gradient(135deg,#22c55e,#16a34a);
                     color:white;
@@ -1168,12 +1211,65 @@
                 ">
                     Send Reply
                 </button>
+
             </div>
 
         </div>
 
     </div>
 </div>
+<div id="globalModal" class="hidden" style="
+position:fixed;
+top:0;left:0;right:0;bottom:0;
+background:rgba(0,0,0,.6);
+display:flex;
+align-items:center;
+justify-content:center;
+z-index:9999;
+">
+
+    <div style="
+        background:#0f172a;
+        border:1px solid #1f2937;
+        border-radius:16px;
+        padding:20px;
+        width:360px;
+        box-shadow:0 20px 60px rgba(0,0,0,.5);
+        text-align:center;
+    ">
+
+        <div style="
+            font-size:18px;
+            font-weight:700;
+            color:#f87171;
+            margin-bottom:10px;
+        ">
+            ⚠️ Action Blocked
+        </div>
+
+        <div id="globalModalText" style="
+            color:#cbd5e1;
+            font-size:14px;
+            margin-bottom:20px;
+            line-height:1.5;
+        ">
+        </div>
+
+        <button onclick="closeGlobalModal()" style="
+            background:#22c55e;
+            border:none;
+            padding:10px 16px;
+            border-radius:10px;
+            color:white;
+            font-weight:700;
+            cursor:pointer;
+        ">
+            OK
+        </button>
+
+    </div>
+</div>
+
         <div id="settingsTab" class="hidden"></div>
             <div id="newOrderTab" class="card hidden" style="margin-top:30px">
 
