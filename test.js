@@ -101,6 +101,7 @@ document.getElementById("warehouseName")?.style.setProperty("display", "none");
 document.getElementById("newWarehouseName")?.style.setProperty("display", "none");
 document.getElementById("y")?.style.setProperty("display", "none");
 document.getElementById("n")?.style.setProperty("display", "none");
+document.getElementById("h")?.style.setProperty("display", "none");
 document.getElementById("newOrderDate").style.display = "none";
 document.getElementById("newOrderTab")?.classList.add("hidden");
 } else {
