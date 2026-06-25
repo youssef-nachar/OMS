@@ -2,7 +2,7 @@ function displayOrders(orders, title = "Order Details") {
     lastTodayOrders = orders;
     lastBacklogOrders = [];
     lastType = title || "table";
-
+ 
     orders.sort((a, b) => {
 
         function getFullDate(order) {
