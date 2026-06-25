@@ -892,17 +892,16 @@ const closeBtn = document.getElementById("closeCommentBtn");
 
 if (closeBtn) {
 
-    if (currentCommentClosed) {
-        closeBtn.innerText = "✔ Closed";
-        closeBtn.style.background = "#22c55e";
-        closeBtn.disabled = true;
-        closeBtn.style.cursor = "not-allowed";
-    } else {
-        closeBtn.innerText = "🔒 Close Comment";
-        closeBtn.style.background = "#ef4444";
-        closeBtn.disabled = false;
-        closeBtn.style.cursor = "pointer";
-    }
+if (currentCommentClosed) {
+    closeBtn.innerText = "🔓 Reopen Comment";
+    closeBtn.style.background = "#22c55e";
+} else {
+    closeBtn.innerText = "🔒 Close Comment";
+    closeBtn.style.background = "#ef4444";
+}
+
+closeBtn.disabled = false;
+closeBtn.style.cursor = "pointer";
 }
     document.getElementById("commentModal")
         .classList.remove("hidden");
@@ -1036,36 +1035,39 @@ function renderChat(comment, replies) {
 function getOrderKey(orderNo) {
     return orderNo.replace(/[.#$[\]]/g, "");
 }
-async function closeCommentAndLockUI() {
+async function toggleCommentStatus() {
 
     if (!currentCommentOrder) return;
 
-    const orderKey = currentCommentOrder.replace(/[.#$[\]]/g, "");
+    const orderKey = getOrderKey(currentCommentOrder);
+
+    const newStatus = !currentCommentClosed;
 
     await update(
         ref(db, `orderCommentsMeta/${orderKey}`),
         {
-            closed: true,
-            closedAt: Date.now(),
-            closedBy:
+            closed: newStatus,
+            updatedAt: Date.now(),
+            updatedBy:
                 localStorage.getItem("currentWarehouse") ||
                 "Manager"
         }
     );
 
-    currentCommentClosed = true;
+    currentCommentClosed = newStatus;
 
-    // 🔥 UI update بدل alert
     const btn = document.getElementById("closeCommentBtn");
 
-    btn.innerText = "✔ Closed";
-    btn.style.background = "#22c55e";
-    btn.disabled = true;
-    btn.style.cursor = "not-allowed";
-    btn.style.boxShadow = "none";
+    if (currentCommentClosed) {
+        btn.innerText = "🔓 Reopen Comment";
+        btn.style.background = "#22c55e";
+    } else {
+        btn.innerText = "🔒 Close Comment";
+        btn.style.background = "#ef4444";
+    }
 
-    // optional: toast/modal بدل alert
-    showGlobalModal("✔ Comment closed successfully");
+    btn.disabled = false;
+    btn.style.cursor = "pointer";
 }
 function closeCommentModal() {
 
