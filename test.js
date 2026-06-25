@@ -2770,32 +2770,216 @@ window.loadOrderComments = async function(){
     Object.entries(data)
     .reverse()
     .forEach(([id,row])=>{
+const replies =
+    row.replies
+        ? Object.entries(row.replies)
+        : [];
+const repliesHtml =
+    replies.map(
+        ([replyId, reply]) => `
+        <div style="
+            margin-top:10px;
+            margin-left:30px;
+            padding:12px;
+            background:#0f172a;
+            border-left:3px solid #22c55e;
+            border-radius:10px;
+        ">
 
+            <div style="
+                color:#94a3b8;
+                font-size:12px;
+                margin-bottom:6px;
+            ">
+                ${reply.by || "System"}
+                •
+                ${reply.createdAt}
+            </div>
+
+     <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+">
+
+    <div>
+        ${reply.comment}
+    </div>
+
+    <button
+        onclick="
+            deleteReply(
+                '${id}',
+                '${replyId}'
+            )
+        "
+        style="
+            background:#dc2626;
+            color:white;
+            border:none;
+            border-radius:8px;
+            padding:5px 10px;
+            cursor:pointer;
+        "
+    >
+        🗑
+    </button>
+
+</div>
+        </div>
+    `).join("");
         if(search &&
            !row.orderNo.toLowerCase().includes(search))
            return;
 
-        html += `
-        <div class="comment-item">
+       html += `
+<div class="comment-item">
 
-            <div class="comment-order">
-                ${row.orderNo}
-            </div>
+    <div class="comment-order">
+        ${row.orderNo}
+    </div>
 
-            <div class="comment-meta">
-                ${row.by || 'System'} • ${row.createdAt}
-            </div>
+    <div class="comment-meta">
+        ${row.by || 'System'} • ${row.createdAt}
+    </div>
 
-            <div class="comment-text">
-                ${row.comment}
-            </div>
+<div class="comment-text">
+    ${row.comment}
+</div>
 
-        </div>`;
+${repliesHtml}
+
+<button
+    onclick="addCommentReply('${id}','${row.orderNo}')"
+    style="
+        margin-top:10px;
+        background:#22c55e;
+        color:white;
+        border:none;
+        padding:6px 12px;
+        border-radius:8px;
+        cursor:pointer;
+    "
+>
+    + Add
+</button>
+<button
+    onclick="deleteComment('${id}')"
+    style="
+        margin-top:10px;
+        margin-left:8px;
+        background:#dc2626;
+        color:white;
+        border:none;
+        padding:6px 12px;
+        border-radius:8px;
+        cursor:pointer;
+    "
+>
+    🗑 Remove
+</button>
+</div>`;
     });
+    document.getElementById("commentOrderNumber").value = "";
+    document.getElementById("orderCommentText").value = "";
+    document.getElementById("commentBy").value = "";
 
     container.innerHTML = html;
 };
+window.deleteReply = async function(
+    commentId,
+    replyId
+){
 
+    const confirmed = confirm(
+        "Remove this reply?"
+    );
+
+    if (!confirmed) return;
+
+    await remove(
+        ref(
+            db,
+            `orderComments/${commentId}/replies/${replyId}`
+        )
+    );
+
+    loadOrderComments();
+};
+window.addCommentReply = function(commentId, orderNo){
+
+    currentReplyCommentId = commentId;
+
+    document.getElementById(
+        "replyOrderInfo"
+    ).innerHTML =
+        `Order: ${orderNo}`;
+
+    document.getElementById(
+        "replyText"
+    ).value = "";
+
+    document.getElementById(
+        "replyModal"
+    ).classList.remove("hidden");
+};
+window.closeReplyModal = function(){
+
+    document
+        .getElementById("replyModal")
+        .classList.add("hidden");
+
+    currentReplyCommentId = null;
+};
+window.saveReply = async function(){
+
+    const comment =
+        document.getElementById(
+            "replyText"
+        ).value.trim();
+
+    if (!comment) {
+        alert("Please enter a reply");
+        return;
+    }
+
+    await push(
+        ref(
+            db,
+            `orderComments/${currentReplyCommentId}/replies`
+        ),
+        {
+            comment,
+            by:
+                localStorage.getItem(
+                    "userWarehouse"
+                ) || "System",
+            createdAt:
+                new Date().toLocaleString()
+        }
+    );
+
+    closeReplyModal();
+    loadOrderComments();
+};
+window.deleteComment = async function(commentId){
+
+    const confirmed = confirm(
+        "Remove this comment?"
+    );
+
+    if (!confirmed) return;
+
+    await remove(
+        ref(
+            db,
+            `orderComments/${commentId}`
+        )
+    );
+
+    loadOrderComments();
+};
 function formatLebanonDateTime(dateValue) {
     if (!dateValue) return "-";
 
