@@ -1480,39 +1480,69 @@ if (statusFilter) {
     renderReadyOrders();
 }
 async function markOrderChecked(orderNo) {
-const order = allOrders.find(o => o.orderNo === orderNo);
 
-if (order?.status === "pending") return;
+    const order = allOrders.find(o => o.orderNo === orderNo);
 
-if (await hasOpenComment(orderNo)) {
-    alert(`Order ${orderNo} has an OPEN comment. Close it first.`);
-    return;
-}
+    if (order?.status === "pending") return;
 
+    if (await hasOpenComment(orderNo)) {
+        alert(`Order ${orderNo} has an OPEN comment. Close it first.`);
+        return;
+    }
+
+    // ✅ تحديث محلي مباشر
+    if (order) {
+        order.status = "checked";
+        order.readyToDistribute = true;
+
+        order.history = [
+            ...(order.history || []),
+            {
+                action: "checked",
+                date: new Date().toISOString(),
+                by: "Checker"
+            }
+        ];
+    }
+
+    // ✅ إعادة رسم الجدول فوراً
+    renderReadyOrders();
+
+    // ثم حفظ Firebase
     const paths = ["orders", "orders_new"];
 
-    paths.forEach(path => {
-        get(ref(db, path)).then(snapshot => {
-            snapshot.forEach(child => {
-                const order = child.val();
+    const updates = [];
 
-                if (order.orderNo === orderNo) {
+    for (const path of paths) {
+
+        const snapshot = await get(ref(db, path));
+
+        snapshot.forEach(child => {
+
+            const dbOrder = child.val();
+
+            if (dbOrder.orderNo === orderNo) {
+
+                updates.push(
                     update(ref(db, `${path}/${child.key}`), {
                         status: "checked",
                         readyToDistribute: true,
                         history: [
-                            ...(order.history || []),
+                            ...(dbOrder.history || []),
                             {
                                 action: "checked",
                                 date: new Date().toISOString(),
                                 by: "Checker"
                             }
                         ]
-                    });
-                }
-            });
+                    })
+                );
+
+            }
         });
-    });
+    }
+
+    await Promise.all(updates);
 }
 function showGlobalModal(message) {
     document.getElementById("globalModalText").innerText = message;
