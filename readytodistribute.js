@@ -37,6 +37,153 @@ selectedBatchType: "Wakilni",
 
     readyPageColor: "#38bdf8"
 };
+function showDistributedOrders() {
+
+const from = dateFrom.value || null;  
+const to = dateTo.value || null;  
+
+const orders = allOrders.filter(o => {  
+
+    const distData = distributedOrdersMap[o.orderNo];  
+
+    if (!distData) return false;  
+
+    const distDate = distData.date;  
+
+    if (from && distDate < from) return false;  
+    if (to && distDate > to) return false;  
+
+    return true;  
+});  
+
+displayOrders(orders, "Distributed Orders");
+
+}
+function loadDistributedOrders() {
+
+return fetch(distributionSheetURL + "&t=" + Date.now(), {  
+    cache: "no-store"  
+})  
+    .then(r => r.text())  
+    .then(csv => {  
+
+        const parsed = Papa.parse(csv, { skipEmptyLines: true });  
+        const rows = parsed.data;  
+
+        if (!rows.length) return;  
+
+        const headers = rows  
+            .shift()  
+            .map(h => h.toString().trim().toLowerCase());  
+
+        const ORDER_COL = headers.indexOf("request number");  
+        const DATE_COL = headers.indexOf("request registration date time");  
+        const COMPANY_COL = headers.findIndex(h => h.includes("company"));  
+
+        if (ORDER_COL === -1 || DATE_COL === -1) {  
+
+            console.warn("❌ Distribution columns not found");  
+            return;  
+        }  
+
+        let newMap = {};  
+
+        rows.forEach(r => {  
+
+            const orderNo =  
+                r[ORDER_COL]?.trim().toUpperCase();  
+
+            const rawDate = r[DATE_COL];  
+
+            const company =  
+                COMPANY_COL !== -1  
+                    ? r[COMPANY_COL]?.trim()  
+                    : "";  
+
+            if (!orderNo || !rawDate) return;  
+
+            const formattedDate =  
+                formatDateForInput(rawDate);  
+
+            if (!formattedDate) return;  
+
+            newMap[orderNo] = {  
+
+                date: formattedDate,  
+
+                company: company || "LMD"  
+            };  
+        });  
+
+        // ✅ دمج الطلبات الموزعة يدوياً من Firebase  
+        allOrders.forEach(order => {  
+
+            if (  
+                order.status === "distributed" &&  
+                order.distributedDate  
+            ) {  
+
+                // إذا غير موجود بالـ CSV  
+                if (!newMap[order.orderNo]) {  
+
+                    newMap[order.orderNo] = {  
+
+                        date: order.distributedDate,  
+
+                        company:  
+                            order.company ||  
+                            order.batch?.company ||  
+                            "LMD"  
+                    };  
+                }  
+            }  
+        });  
+
+        const newHash = hashDistribution(newMap);  
+
+        // 🔥 BLOCK إذا رجعت نسخة قديمة  
+        if (  
+            lastDistributionHash &&  
+            newHash === lastDistributionHash  
+        ) {  
+            return;  
+        }  
+
+        // 🔥 لو النسخة أقدم تجاهلها  
+        if (  
+            Object.keys(newMap).length <  
+            Object.keys(distributionCache).length  
+        ) {  
+
+            console.warn(  
+                "⚠️ Older distribution snapshot blocked"  
+            );  
+
+            return;  
+        }  
+
+        // ✅ اعتماد النسخة الجديدة  
+        distributionCache = newMap;  
+
+        distributedOrdersMap = newMap;  
+
+        lastDistributionHash = newHash;  
+
+        updateDashboard();  
+
+        console.log(  
+            "✅ Distribution updated safely"  
+        );  
+    })  
+    .catch(err => {  
+
+        console.error(  
+            "Distribution load error:",  
+            err  
+        );  
+    });
+
+}
 
 function renderSingleBatch(title, orders) {
 
@@ -169,9 +316,29 @@ async function hasOpenComment(orderNo) {
 
     const orderKey = orderNo.replace(/[.#$[\]]/g, "");
 
-    const metaSnap = await get(ref(db, `orderCommentsMeta/${orderKey}`));
+    // هل يوجد أي Comment لهذا الطلب؟
+    const commentsSnap = await get(ref(db, "orderComments"));
 
-    return !(metaSnap.exists() && metaSnap.val().closed === true);
+    const hasComments =
+        commentsSnap.exists() &&
+        Object.values(commentsSnap.val()).some(
+            c => c.orderNo === orderNo
+        );
+
+    // لا يوجد Comment أبداً
+    if (!hasComments) {
+        return false;
+    }
+
+    // يوجد Comment → تحقق هل هو مغلق
+    const metaSnap = await get(
+        ref(db, `orderCommentsMeta/${orderKey}`)
+    );
+
+    return !(
+        metaSnap.exists() &&
+        metaSnap.val().closed === true
+    );
 }
 function openReadyEditModal(orderNo, boxes, cbm) {
 
@@ -359,6 +526,22 @@ for (const path of paths) {
         }
     });
 }
+
+const existing = allOrders.find(
+    o => o.orderNo === orderNo
+);
+
+if (existing) {
+    existing.readyToDistribute = true;
+    existing.status = "ready_to_distribute";
+    existing.boxes = Number(boxes);
+    existing.cbm = Number(cbm);
+    existing.company = company;
+    existing.emailOrComment = emailOrComment;
+    existing.readyTime = new Date().toISOString();
+}
+
+renderReadyOrders();
     // تنظيف الحقول
     document.getElementById("readyOrderInput").value = "";
     document.getElementById("readyBoxesInput").value = "";
@@ -782,238 +965,255 @@ function isDistributed(order) {
 function renderReadyOrders() {
 
     const container = document.getElementById("readyOrdersTable");
-let readyOrders = allOrders.filter(o =>
-    o.readyToDistribute ||
-    o.status === "ready_to_distribute" ||
-    o.status === "checked"
-);
+    if (!container) return;
 
-// STATUS FILTER (clean fix)
-if (selectedStatusFilter === "checked") {
-    readyOrders = readyOrders.filter(o => o.status === "checked");
-} 
-else if (selectedStatusFilter === "ready") {
-    readyOrders = readyOrders.filter(o => o.status === "ready_to_distribute");
-}else {
-    // ✅ ALL STATUS (NO FILTER)
-    readyOrders = readyOrders;
-}
-if (selectedCompanyFilter) {
-    readyOrders = readyOrders.filter(
-        o => o.company === selectedCompanyFilter
+    let readyOrders = allOrders.filter(o =>
+        o.readyToDistribute === true ||
+        o.status === "ready_to_distribute" ||
+        o.status === "checked"
     );
-}
-if (!readyOrders.length) {
+
+    // Status Filter
+    if (selectedStatusFilter === "checked") {
+        readyOrders = readyOrders.filter(
+            o => o.status === "checked"
+        );
+    } else if (selectedStatusFilter === "ready") {
+        readyOrders = readyOrders.filter(
+            o => o.status === "ready_to_distribute"
+        );
+    }
+
+    // Company Filter
+    if (selectedCompanyFilter) {
+        readyOrders = readyOrders.filter(
+            o => o.company === selectedCompanyFilter
+        );
+    }
+
+    // ترتيب الأحدث أولاً
+    readyOrders.sort((a, b) =>
+        new Date(b.readyTime || 0) -
+        new Date(a.readyTime || 0)
+    );
+
+    if (!readyOrders.length) {
+        container.innerHTML = `
+            <div style="
+                padding:40px;
+                text-align:center;
+                color:#94a3b8;
+            ">
+                <h3>No orders found</h3>
+
+                <p>
+                    No orders available for
+                    <b>${selectedCompanyFilter || "selected filter"}</b>
+                </p>
+
+                <button
+                    onclick="clearCompanyFilter()"
+                    style="
+                        margin-top:15px;
+                        padding:10px 20px;
+                        background:#0ea5e9;
+                        border:none;
+                        border-radius:8px;
+                        color:white;
+                        font-weight:600;
+                        cursor:pointer;
+                    "
+                >
+                    🔄 Show All Orders
+                </button>
+            </div>
+        `;
+        return;
+    }
+
     container.innerHTML = `
-        <div style="
-            padding:40px;
+    <table class="ready-table"
+        style="
+            width:100%;
+            border-collapse:collapse;
             text-align:center;
-            color:#94a3b8;
         ">
-            <h3>No orders found</h3>
 
-            <p>
-                No orders available for
-                <b>${selectedCompanyFilter || "selected filter"}</b>
-            </p>
-
-            <button
-                onclick="clearCompanyFilter()"
-                style="
-                    margin-top:15px;
-                    padding:10px 20px;
-                    background:#0ea5e9;
-                    border:none;
-                    border-radius:8px;
-                    color:white;
-                    font-weight:600;
-                    cursor:pointer;
-                "
-            >
-                🔄 Show All Orders
-            </button>
-        </div>
-    `;
-    return;
-}
-container.innerHTML = `
-<table class="ready-table" style="width:100%;border-collapse:collapse;text-align:center">
-<tr>
-    <th>
-        <input
-            type="checkbox"
-            id="selectAllReady"
-            onchange="toggleSelectAllReady(this)"
-        >
-    </th>
-    <th>Order</th>
-    <th>Boxes</th>
-    <th>CBM</th>
-    <th style="position:relative;">
-  <select
-    id="readyCompanyFilter"
-    onchange="filterReadyByCompany(this.value)"
-    style="
-        width:100%;
-        background:transparent;
-        border:none;
-        color:#635d45;
-        font-weight:700;
-        text-align:center;
-        cursor:pointer;
-        outline:none;
-        appearance:none;
-        padding-right:20px;
-    "
->
-    <option value="" ${selectedCompanyFilter === "" ? "selected" : ""}>
-        All Companies
-    </option>
-
-    <option value="LMD"
-        ${selectedCompanyFilter === "LMD" ? "selected" : ""}>
-        LMD
-    </option>
-
-    <option value="Wakilni"
-        ${selectedCompanyFilter === "Wakilni" ? "selected" : ""}>
-        Wakilni
-    </option>
-
-    <option value="Employee"
-        ${selectedCompanyFilter === "Employee" ? "selected" : ""}>
-        Employee
-    </option>
-</select>
-
-    <span style="
-        position:absolute;
-        right:8px;
-        top:50%;
-        transform:translateY(-50%);
-        pointer-events:none;
-        color:#64748b;
-    ">
-        ▼
-    </span>
-</th>
-    <th>Note</th>
-    <th>Status</th>
-<th>
-    Action
-    <div style="margin-top:5px;">
-        <select
-    id="readyStatusFilter"
-    onchange="setStatusFilter(this.value)"
-    style="
-        width:100%;
-        background:transparent;
-        border:none;
-        color:#635d45;
-        font-weight:700;
-        text-align:center;
-        cursor:pointer;
-        outline:none;
-        appearance:none;
-    "
->
-    <option value=""
-        ${selectedStatusFilter === "" ? "selected" : ""}>
-        All Status
-    </option>
-
-    <option value="checked"
-        ${selectedStatusFilter === "checked" ? "selected" : ""}>
-        Checked
-    </option>
-
-    <option value="ready"
-        ${selectedStatusFilter === "ready" ? "selected" : ""}>
-        Ready
-    </option>
-</select>
-        <span style="
-        position:absolute;
-        right:8px;
-        top:50%;
-        transform:translateY(-50%);
-        pointer-events:none;
-        color:#64748b;
-    ">
-        ▼
-    </span>
-    </div>
-</th>
-</tr>
-    ${readyOrders.map(o => `
         <tr>
-            <td>
-<input type="checkbox"
-    class="readyCheckbox"
-    value="${o.orderNo}"
-    onchange="updateSelectAllReady()">
-            </td>
+            <th>
+                <input
+                    type="checkbox"
+                    id="selectAllReady"
+                    onchange="toggleSelectAllReady(this)"
+                >
+            </th>
 
-            <td>${o.orderNo}</td>
-            <td>${o.boxes || 0}</td>
-            <td>${o.cbm || 0}</td>
-<td style="font-weight:600;color:#facc15">
-    ${o.company || "-"}
-</td>
-            <td style="font-size:12px;color:#38bdf8">
-                ${o.emailOrComment || "-"}
-            </td>
+            <th>Order</th>
+            <th>Boxes</th>
+            <th>CBM</th>
 
-   <td style="
-    font-weight:700;
-    color:${o.status === "checked"
-        ? "#facc15"
-        : "#22c55e"};
-">
-    ${o.status === "checked"
-        ? "Checked"
-        : "Ready"}
-</td>
+            <th>
+                <select
+                    id="readyCompanyFilter"
+                    onchange="filterReadyByCompany(this.value)"
+                    style="
+                        width:100%;
+                        background:transparent;
+                        border:none;
+                        color:#635d45;
+                        font-weight:700;
+                        text-align:center;
+                        cursor:pointer;
+                        outline:none;
+                    "
+                >
+                    <option value=""
+                        ${selectedCompanyFilter === "" ? "selected" : ""}>
+                        All Companies
+                    </option>
 
-      <td style="display:flex;gap:5px;justify-content:center">
+                    <option value="LMD"
+                        ${selectedCompanyFilter === "LMD" ? "selected" : ""}>
+                        LMD
+                    </option>
 
-${o.status !== "checked" ? `
-<button
-    onclick="markOrderChecked('${o.orderNo}')"
-    style="
-        background:#facc15;
-        color:black;
-        border:none;
-        padding:6px 10px;
-        border-radius:6px;
-        cursor:pointer;
-        font-weight:700;
-    "
->
-    ✓ Checked
-</button>
-` : `
-<span style="
-    color:#facc15;
-    font-weight:700;
-">
-    ✓ Checked
-</span>
-`}
+                    <option value="Wakilni"
+                        ${selectedCompanyFilter === "Wakilni" ? "selected" : ""}>
+                        Wakilni
+                    </option>
 
-    <button
-        onclick="openReadyEditModal('${o.orderNo}', ${o.boxes || 0}, ${o.cbm || 0})"
-    >
-        Edit
-    </button>
+                    <option value="Employee"
+                        ${selectedCompanyFilter === "Employee" ? "selected" : ""}>
+                        Employee
+                    </option>
+                </select>
+            </th>
 
-</td>
+            <th>Note</th>
+            <th>Status</th>
+
+            <th>
+                <select
+                    id="readyStatusFilter"
+                    onchange="setStatusFilter(this.value)"
+                    style="
+                        width:100%;
+                        background:transparent;
+                        border:none;
+                        color:#635d45;
+                        font-weight:700;
+                        text-align:center;
+                        cursor:pointer;
+                        outline:none;
+                    "
+                >
+                    <option value=""
+                        ${selectedStatusFilter === "" ? "selected" : ""}>
+                        All Status
+                    </option>
+
+                    <option value="checked"
+                        ${selectedStatusFilter === "checked" ? "selected" : ""}>
+                        Checked
+                    </option>
+
+                    <option value="ready"
+                        ${selectedStatusFilter === "ready" ? "selected" : ""}>
+                        Ready
+                    </option>
+                </select>
+            </th>
         </tr>
-    `).join("")}
-</table>
-`;
-}
 
+        ${readyOrders.map(o => `
+            <tr>
+                <td>
+                    <input
+                        type="checkbox"
+                        class="readyCheckbox"
+                        value="${o.orderNo}"
+                        onchange="updateSelectAllReady()"
+                    >
+                </td>
+
+                <td>${o.orderNo}</td>
+                <td>${o.boxes || 0}</td>
+                <td>${o.cbm || 0}</td>
+
+                <td style="
+                    font-weight:600;
+                    color:#facc15;
+                ">
+                    ${o.company || "-"}
+                </td>
+
+                <td style="
+                    font-size:12px;
+                    color:#38bdf8;
+                ">
+                    ${o.emailOrComment || "-"}
+                </td>
+
+                <td style="
+                    font-weight:700;
+                    color:${o.status === "checked"
+                        ? "#facc15"
+                        : "#22c55e"};
+                ">
+                    ${o.status === "checked"
+                        ? "Checked"
+                        : "Ready"}
+                </td>
+
+                <td style="
+                    display:flex;
+                    gap:5px;
+                    justify-content:center;
+                ">
+
+                    ${o.status !== "checked" ? `
+                        <button
+                            onclick="markOrderChecked('${o.orderNo}')"
+                            style="
+                                background:#facc15;
+                                color:black;
+                                border:none;
+                                padding:6px 10px;
+                                border-radius:6px;
+                                cursor:pointer;
+                                font-weight:700;
+                            "
+                        >
+                            ✓ Checked
+                        </button>
+                    ` : `
+                        <span style="
+                            color:#facc15;
+                            font-weight:700;
+                        ">
+                            ✓ Checked
+                        </span>
+                    `}
+
+                    <button
+                        onclick="
+                            openReadyEditModal(
+                                '${o.orderNo}',
+                                ${o.boxes || 0},
+                                ${o.cbm || 0}
+                            )
+                        "
+                    >
+                        Edit
+                    </button>
+
+                </td>
+            </tr>
+        `).join("")}
+
+    </table>
+    `;
+}
 function loadSettings() {
 
     const saved = localStorage.getItem("appSettings");
