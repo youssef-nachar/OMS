@@ -467,7 +467,71 @@ const order = allOrders.find(o => o.orderNo === orderNo);
 if (!orderNo) return;
 
 if (order?.status === "pending") {
-    alert("❌ Cannot move PENDING order to Ready");
+
+    showPremiumModal(`
+        <div style="
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:18px;
+        ">
+
+            <div style="
+                width:90px;
+                height:90px;
+                border-radius:50%;
+                background:rgba(239,68,68,.12);
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                font-size:42px;
+                box-shadow:
+                    inset 0 0 30px rgba(239,68,68,.2),
+                    0 0 40px rgba(239,68,68,.15);
+            ">
+                ⛔
+            </div>
+
+            <div style="
+                color:white;
+                font-size:22px;
+                font-weight:800;
+            ">
+                Distribution Blocked
+            </div>
+
+            <div style="
+                color:#94a3b8;
+                line-height:1.8;
+                font-size:15px;
+                max-width:350px;
+            ">
+                Order
+                <span style="
+                    color:#38bdf8;
+                    font-weight:700;
+                ">
+                    ${orderNo}
+                </span>
+                is currently in
+                <span style="
+                    color:#ef4444;
+                    font-weight:700;
+                ">
+                    PENDING
+                </span>
+                status and cannot be moved to
+                <span style="
+                    color:#22c55e;
+                    font-weight:700;
+                ">
+                    Ready To Distribute
+                </span>.
+            </div>
+
+        </div>
+    `);
+
     return;
 }
 
@@ -796,7 +860,43 @@ function distributeSelectedOrders() {
     }
 
     const selectedOrders = Array.from(checkboxes).map(cb => cb.value);
-    
+    const notChecked = selectedOrders.filter(orderNo => {
+    const order = allOrders.find(o => o.orderNo === orderNo);
+    return !order || order.status !== "checked";
+});
+
+if (notChecked.length) {
+showPremiumModal(`
+    <div style="
+        color:#f8fafc;
+        font-size:16px;
+        margin-top:15px;
+    ">
+        The following orders must be
+        <span style="
+            color:#facc15;
+            font-weight:700;
+        ">
+            Checked
+        </span>
+        before distribution:
+        <br><br>
+
+        <div style="
+            background:#020617;
+            border:1px solid rgba(255,255,255,.06);
+            border-radius:16px;
+            padding:16px;
+            color:#facc15;
+            font-weight:700;
+            line-height:1.8;
+        ">
+            ${notChecked.join("<br>")}
+        </div>
+    </div>
+`);
+    return;
+}
     const todayISO = new Date().toISOString();
     const todayDate = todayISO.split("T")[0];
 
@@ -1567,4 +1667,15 @@ function setStatusFilter(type) {
     console.log("Status Filter:", selectedStatusFilter);
 
     renderReadyOrders();
+}
+
+function showPremiumModal(message) {
+    document.getElementById("premiumModalText").innerHTML = message;
+    document.getElementById("premiumModal")
+        .classList.remove("hidden");
+}
+
+function closePremiumModal() {
+    document.getElementById("premiumModal")
+        .classList.add("hidden");
 }
