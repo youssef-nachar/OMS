@@ -21,6 +21,8 @@ let pendingReturnOrders = [];
 let currentOriginalComment = "";
 let currentOriginalDate = null;
 let currentCommentClosed = false;
+let advCharts = {};
+let advancedDashboardTimer=null;
 function cleanOrderKey(orderNo) {
     return orderNo.replace(/#/g, "");
 }
@@ -1533,7 +1535,17 @@ updateKPIWithBacklog("pending", pendingToday.length, pendingBacklog.length);
 renderWarehouseBreakdown(todayOrders);  
 renderMultiWHOrders(todayOrders);  
 renderSingleWHOrders(todayOrders);
+if(
+!document
+.getElementById("advancedDashboardTab")
+.classList.contains("hidden")
+){
 
+refreshAdvancedDashboard();
+
+}
+
+  
 }
 function updateKPIWithBacklog(id, todayValue, backlogValue) {
 
@@ -1590,6 +1602,8 @@ function showReturnTab() {
         .classList.add("hidden");
 document.getElementById("reportsTab")  
     ?.classList.add("hidden");  
+document.getElementById("advancedDashboardTab")
+        ?.classList.add("hidden");
 
 document.getElementById("dashboardHeader")  
     .style.display = "none";  
@@ -2854,3 +2868,826 @@ window.addEventListener("click", function (event) {
         modal.classList.add("hidden");
     }
 });
+
+function showAdvancedDashboard() {
+
+    // إيقاف أي تحديث سابق
+    if (advancedDashboardTimer) {
+        clearInterval(advancedDashboardTimer);
+    }
+
+    // إخفاء الصفحات الأخرى
+    document.getElementById("reportConfigPage")?.classList.add("hidden");
+    document.getElementById("orderCommentsTab")?.classList.add("hidden");
+    document.getElementById("newOrderTab")?.classList.add("hidden");
+    document.getElementById("reportsTab")?.classList.add("hidden");
+    document.getElementById("readyTab")?.classList.add("hidden");
+    document.getElementById("returnTab")?.classList.add("hidden");
+    document.getElementById("aboutTab")?.classList.add("hidden");
+    document.getElementById("settingsTab")?.classList.add("hidden");
+
+    // إخفاء الداشبورد الرئيسي
+    document.querySelector(".kpis")?.classList.add("hidden");
+    document.querySelector(".warehouse-container")?.classList.add("hidden");
+    document.querySelector(".sales-order")?.classList.add("hidden");
+
+    // إخفاء الهيدر الرئيسي
+    document.getElementById("dashboardHeader").style.display = "none";
+
+    // إظهار Advanced Dashboard
+    document.getElementById("advancedDashboardTab")
+        ?.classList.remove("hidden");
+
+    // تحميل البيانات
+    loadAdvancedDashboard();
+
+    // تحديث تلقائي كل 30 ثانية
+    advancedDashboardTimer = setInterval(() => {
+        refreshAdvancedDashboard();
+    }, 30000);
+}
+function loadAdvancedDashboard(){
+
+    const container=document.getElementById("advancedDashboardContent");
+
+    container.innerHTML=`
+
+<div class="adv-grid">
+
+    <div class="adv-card">
+        <h3>Total Orders</h3>
+        <div id="advTotal" class="adv-number">0</div>
+    </div>
+
+    <div class="adv-card">
+        <h3>Pending</h3>
+        <div id="advPending" class="adv-number">0</div>
+    </div>
+
+    <div class="adv-card">
+        <h3>In Packing</h3>
+        <div id="advPacking" class="adv-number">0</div>
+    </div>
+
+    <div class="adv-card">
+        <h3>Ready</h3>
+        <div id="advReady" class="adv-number">0</div>
+    </div>
+
+    <div class="adv-card">
+        <h3>Distributed</h3>
+        <div id="advDistributed" class="adv-number">0</div>
+    </div>
+
+</div>
+
+<div class="adv-placeholder">
+
+Charts will be added in Part 2
+
+</div>
+
+`;
+
+    refreshAdvancedDashboard();
+
+}
+function refreshAdvancedDashboard(){
+
+    const orders=applyFilters();
+
+    document.getElementById("advTotal").innerHTML=
+        orders.length;
+
+    document.getElementById("advPending").innerHTML=
+        orders.filter(o=>
+            o.status=="pending" ||
+            o.status=="partial"
+        ).length;
+
+    document.getElementById("advPacking").innerHTML=
+        orders.filter(o=>
+            o.status=="completed"
+        ).length;
+
+    document.getElementById("advReady").innerHTML=
+        orders.filter(o=>
+            o.status=="ready_to_distribute"
+        ).length;
+
+    document.getElementById("advDistributed").innerHTML=
+        orders.filter(o=>
+            o.status=="distributed"
+        ).length;
+        drawAdvancedCharts(orders);
+
+}
+function loadAdvancedDashboard(){
+
+    const container = document.getElementById("advancedDashboardContent");
+
+    container.innerHTML = `
+
+<div class="adv-top-cards">
+
+    <div class="adv-stat-card green">
+        <div class="stat-title">Total Orders</div>
+        <div class="stat-value" id="advTotal">0</div>
+        <div class="stat-sub">Today's Orders</div>
+    </div>
+
+    <div class="adv-stat-card orange">
+        <div class="stat-title">Pending</div>
+        <div class="stat-value" id="advPending">0</div>
+        <div class="stat-sub">Waiting Packing</div>
+    </div>
+
+    <div class="adv-stat-card blue">
+        <div class="stat-title">In Packing</div>
+        <div class="stat-value" id="advPacking">0</div>
+        <div class="stat-sub">Packing Station</div>
+    </div>
+
+    <div class="adv-stat-card cyan">
+        <div class="stat-title">Ready</div>
+        <div class="stat-value" id="advReady">0</div>
+        <div class="stat-sub">Ready To Distribute</div>
+    </div>
+
+    <div class="adv-stat-card purple">
+        <div class="stat-title">Distributed</div>
+        <div class="stat-value" id="advDistributed">0</div>
+        <div class="stat-sub">Completed Delivery</div>
+    </div>
+
+</div>
+
+
+<div class="adv-row">
+
+    <div class="adv-panel">
+
+        <div class="panel-title">
+            Multi Warehouse Orders
+        </div>
+
+        <canvas id="multiWarehouseChart"></canvas>
+
+    </div>
+
+    <div class="adv-panel">
+
+        <div class="panel-title">
+            Single Warehouse Orders
+        </div>
+
+        <canvas id="singleWarehouseChart"></canvas>
+
+    </div>
+
+</div>
+
+
+<div class="adv-row">
+
+    <div class="adv-panel large">
+
+        <div class="panel-title">
+            Sales Order Details
+        </div>
+
+        <canvas id="salesChart"></canvas>
+
+    </div>
+
+    <div class="adv-panel large">
+
+        <div class="panel-title">
+            Tracking Overview
+        </div>
+
+        <canvas id="trackingChart"></canvas>
+
+    </div>
+
+</div>
+
+
+<div class="adv-row">
+
+    <div class="adv-panel">
+
+        <div class="panel-title">
+            Order Status Distribution
+        </div>
+
+        <canvas id="statusChart"></canvas>
+
+    </div>
+
+    <div class="adv-panel">
+
+        <div class="panel-title">
+            Orders Trend
+        </div>
+
+        <canvas id="trendChart"></canvas>
+
+    </div>
+
+</div>
+
+
+<div class="adv-row">
+
+    <div class="adv-panel">
+
+        <div class="panel-title">
+            Warehouse Performance
+        </div>
+
+        <canvas id="warehouseRadar"></canvas>
+
+    </div>
+
+    <div class="adv-panel">
+
+        <div class="panel-title">
+            Orders By Time
+        </div>
+
+      <div id="heatmapGrid"></div>
+    </div>
+
+    <div class="adv-panel">
+
+        <div class="panel-title">
+            Cancellation & Returns
+        </div>
+
+        <canvas id="returnChart"></canvas>
+
+    </div>
+
+</div>
+
+`;
+
+    refreshAdvancedDashboard();
+
+}
+document.querySelectorAll(".adv-stat-card").forEach(card=>{
+
+card.style.opacity="0";
+
+card.style.transform="translateY(15px)";
+
+setTimeout(()=>{
+
+card.style.transition=".4s";
+
+card.style.opacity="1";
+
+card.style.transform="translateY(0px)";
+
+},100);
+const warehouseTotals={};
+
+orders.forEach(order=>{
+
+    order.warehouses.forEach(w=>{
+
+        if(!warehouseTotals[w.base])
+
+            warehouseTotals[w.base]=0;
+
+        warehouseTotals[w.base]++;
+
+    });
+
+});
+
+advCharts.radar=new Chart(
+
+document.getElementById("warehouseRadar"),
+
+{
+
+type:"radar",
+
+data:{
+
+labels:Object.keys(warehouseTotals),
+
+datasets:[{
+
+label:"Orders",
+
+data:Object.values(warehouseTotals)
+
+}]
+
+},
+
+options:{
+
+plugins:{
+
+legend:{
+
+labels:{color:"white"}
+
+}
+
+}
+
+}
+
+}
+
+);
+});
+
+function destroyAdvancedCharts(){
+
+    Object.values(advCharts).forEach(chart=>{
+
+        if(chart) chart.destroy();
+
+    });
+
+    advCharts={};
+
+}
+
+function drawAdvancedCharts(orders){
+
+    destroyAdvancedCharts();
+
+    const pending =
+        orders.filter(o=>o.status=="pending" || o.status=="partial").length;
+
+    const packing =
+        orders.filter(o=>o.status=="completed").length;
+
+    const ready =
+        orders.filter(o=>o.status=="ready_to_distribute").length;
+
+    const distributed =
+        orders.filter(o=>o.status=="distributed").length;
+
+    const canceled =
+        orders.filter(o=>o.status=="canceled").length;
+
+    const returned =
+        orders.filter(o=>o.status=="returned").length;
+
+    //------------------------------------------------
+    // STATUS DONUT
+    //------------------------------------------------
+
+    advCharts.status = new Chart(
+
+        document.getElementById("statusChart"),
+
+        {
+
+            type:"doughnut",
+
+            data:{
+
+                labels:[
+                    "Pending",
+                    "Packing",
+                    "Ready",
+                    "Distributed"
+                ],
+
+                datasets:[{
+
+                    data:[
+                        pending,
+                        packing,
+                        ready,
+                        distributed
+                    ]
+
+                }]
+
+            },
+
+            options:{
+                responsive:true,
+                plugins:{
+                    legend:{
+                        labels:{
+                            color:"white"
+                        }
+                    }
+                }
+            }
+
+        }
+
+    );
+
+    //------------------------------------------------
+    // RETURNS
+    //------------------------------------------------
+
+    advCharts.returns = new Chart(
+
+        document.getElementById("returnChart"),
+
+        {
+
+            type:"pie",
+
+            data:{
+
+                labels:["Canceled","Returned"],
+
+                datasets:[{
+
+                    data:[
+
+                        canceled,
+
+                        returned
+
+                    ]
+
+                }]
+
+            },
+
+            options:{
+
+                plugins:{
+                    legend:{
+                        labels:{
+                            color:"white"
+                        }
+                    }
+                }
+
+            }
+
+        }
+
+    );
+
+    //------------------------------------------------
+    // MULTI WH
+    //------------------------------------------------
+
+    const multi =
+        orders.filter(o=>o.warehouseCount>1).length;
+
+    const single =
+        orders.filter(o=>o.warehouseCount==1).length;
+
+    advCharts.multi = new Chart(
+
+        document.getElementById("multiWarehouseChart"),
+
+        {
+
+            type:"bar",
+
+            data:{
+
+                labels:["Multi","Single"],
+
+                datasets:[{
+
+                    data:[
+
+                        multi,
+
+                        single
+
+                    ]
+
+                }]
+
+            },
+
+            options:{
+                scales:{
+                    x:{
+                        ticks:{color:"white"}
+                    },
+                    y:{
+                        ticks:{color:"white"}
+                    }
+                },
+                plugins:{
+                    legend:{display:false}
+                }
+            }
+
+        }
+
+    );
+
+    //------------------------------------------------
+    // SINGLE CHART
+    //------------------------------------------------
+
+    advCharts.single = new Chart(
+
+        document.getElementById("singleWarehouseChart"),
+
+        {
+
+            type:"bar",
+
+            data:{
+
+                labels:[
+                    "Pending",
+                    "Packing",
+                    "Distributed"
+                ],
+
+                datasets:[{
+
+                    data:[
+
+                        pending,
+
+                        packing,
+
+                        distributed
+
+                    ]
+
+                }]
+
+            },
+
+            options:{
+                scales:{
+                    x:{ticks:{color:"white"}},
+                    y:{ticks:{color:"white"}}
+                },
+                plugins:{
+                    legend:{display:false}
+                }
+            }
+
+        }
+
+    );
+
+    //------------------------------------------------
+    // SALES LINE
+    //------------------------------------------------
+
+    const daily={};
+
+    orders.forEach(order=>{
+
+        const d=(order.date||"").substring(0,10);
+
+        if(!daily[d]) daily[d]=0;
+
+        daily[d]++;
+
+    });
+
+    advCharts.sales=new Chart(
+
+        document.getElementById("salesChart"),
+
+        {
+
+            type:"line",
+
+            data:{
+
+                labels:Object.keys(daily),
+
+                datasets:[{
+
+                    label:"Orders",
+
+                    data:Object.values(daily),
+
+                    tension:.4,
+
+                    fill:false
+
+                }]
+
+            },
+
+            options:{
+
+                plugins:{
+                    legend:{
+                        labels:{
+                            color:"white"
+                        }
+                    }
+                },
+
+                scales:{
+
+                    x:{ticks:{color:"white"}},
+
+                    y:{ticks:{color:"white"}}
+
+                }
+
+            }
+
+        }
+
+    );
+//------------------------------------------------
+// TRACKING OVERVIEW
+//------------------------------------------------
+
+const tracking = {
+    Received: 0,
+    Packing: 0,
+    Ready: 0,
+    Distributed: 0
+};
+
+orders.forEach(order=>{
+
+    tracking.Received++;
+
+    if(order.status=="completed")
+        tracking.Packing++;
+
+    if(order.status=="ready_to_distribute")
+        tracking.Ready++;
+
+    if(order.status=="distributed")
+        tracking.Distributed++;
+
+});
+
+advCharts.tracking = new Chart(
+
+document.getElementById("trackingChart"),
+
+{
+
+type:"line",
+
+data:{
+
+labels:Object.keys(tracking),
+
+datasets:[{
+
+label:"Orders",
+
+data:Object.values(tracking),
+
+fill:true,
+
+tension:.45
+
+}]
+
+},
+
+options:{
+
+responsive:true,
+
+plugins:{
+
+legend:{
+labels:{color:"white"}
+}
+
+},
+
+scales:{
+
+x:{ticks:{color:"white"}},
+
+y:{ticks:{color:"white"}}
+
+}
+
+}
+
+});
+//------------------------------------------------
+// ORDERS TREND
+//------------------------------------------------
+
+const trend = {};
+
+orders.forEach(order=>{
+
+    const d=(order.date||"").substring(0,10);
+
+    trend[d]=(trend[d]||0)+1;
+
+});
+
+const labels =
+Object.keys(trend).sort().slice(-30);
+
+const values =
+labels.map(x=>trend[x]);
+
+advCharts.trend = new Chart(
+
+document.getElementById("trendChart"),
+
+{
+
+type:"line",
+
+data:{
+
+labels,
+
+datasets:[{
+
+label:"Orders",
+
+data:values,
+
+tension:.4
+
+}]
+
+},
+
+options:{
+
+plugins:{
+legend:{
+labels:{color:"white"}
+}
+},
+
+scales:{
+
+x:{ticks:{color:"white"}},
+
+y:{ticks:{color:"white"}}
+
+}
+
+}
+
+});
+
+renderHeatmap(orders);
+}
+
+function renderHeatmap(orders){
+
+const grid=document.getElementById("heatmapGrid");
+
+if(!grid) return;
+
+grid.innerHTML="";
+
+const map={};
+
+orders.forEach(o=>{
+
+const h=new Date(o.date).getHours();
+
+map[h]=(map[h]||0)+1;
+
+});
+
+for(let i=0;i<24;i++){
+
+const value=map[i]||0;
+
+let color="#1e293b";
+
+if(value>2) color="#14532d";
+
+if(value>5) color="#16a34a";
+
+if(value>10) color="#22c55e";
+
+grid.innerHTML+=`
+
+<div
+class="heat-cell"
+title="${i}:00 (${value})"
+style="background:${color}"
+></div>
+
+`;
+
+}
+
+}
