@@ -4,6 +4,8 @@ document.getElementById("reportConfigPage").classList.add("hidden")
     document.getElementById("dashboardHeader").style.display = "flex";
     document.getElementById("orderCommentsTab")
         .classList.add("hidden");
+document.getElementById("advancedDashboardTab")
+        ?.classList.add("hidden");
 
     // إخفاء كل التابات
     document.getElementById("newOrderTab").classList.add("hidden");
@@ -24,6 +26,8 @@ document.getElementById("reportConfigPage").classList.add("hidden")
 function showAboutTab() {
     document.getElementById("orderCommentsTab")
         .classList.add("hidden");
+document.getElementById("advancedDashboardTab")
+        ?.classList.add("hidden");
 
     // إخفاء الهيدر إذا أردت
     document.getElementById("dashboardHeader").style.display = "none";
