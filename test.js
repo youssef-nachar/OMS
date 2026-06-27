@@ -1,4 +1,8 @@
 let showOnlyReceived = false;
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+Chart.defaults.devicePixelRatio = window.devicePixelRatio || 2;
+Chart.defaults.animation = false;
 let refreshTimer = null;
 let isRefreshing = false;
 let showOnlyBacklog = false;
@@ -1541,7 +1545,9 @@ if(
 .classList.contains("hidden")
 ){
 
-refreshAdvancedDashboard();
+setTimeout(() => {
+    refreshAdvancedDashboard();
+}, 100);
 
 }
 
@@ -2949,7 +2955,9 @@ Charts will be added in Part 2
 
 `;
 
+    setTimeout(() => {
     refreshAdvancedDashboard();
+}, 100);
 
 }
 function refreshAdvancedDashboard(){
@@ -3133,7 +3141,9 @@ function loadAdvancedDashboard(){
 
 `;
 
+    setTimeout(() => {
     refreshAdvancedDashboard();
+}, 100);
 
 }
 document.querySelectorAll(".adv-stat-card").forEach(card=>{
@@ -3212,7 +3222,26 @@ function destroyAdvancedCharts(){
 
     Object.values(advCharts).forEach(chart=>{
 
-        if(chart) chart.destroy();
+        if(chart){
+
+            chart.destroy();
+
+            const canvas = chart.canvas;
+
+            if(canvas){
+
+                const ctx = canvas.getContext("2d");
+
+                ctx.clearRect(
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                );
+
+            }
+
+        }
 
     });
 
