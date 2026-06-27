@@ -4093,17 +4093,22 @@ grid-template-columns:1fr 1fr 1fr;
 }
 
 .adv-panel{
-
+position:relative;
+    height:380px;
+    min-height:380px;
 background:#111827;
 
 border:1px solid #1f2937;
 
 border-radius:18px;
 
-padding:20px;
 
-min-height:340px;
 
+}
+.adv-panel canvas{
+    width:100% !important;
+    height:100% !important;
+    display:block;
 }
 
 .large{
