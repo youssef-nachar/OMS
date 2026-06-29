@@ -2897,8 +2897,6 @@ function showAdvancedDashboard() {
     document.querySelector(".warehouse-container")?.classList.add("hidden");
     document.querySelector(".sales-order")?.classList.add("hidden");
 
-    // إخفاء الهيدر الرئيسي
-    document.getElementById("dashboardHeader").style.display = "none";
 
     // إظهار Advanced Dashboard
     document.getElementById("advancedDashboardTab")
