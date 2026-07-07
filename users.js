@@ -1,6 +1,6 @@
 const users = [
 
-    { username: "manager", password: "123456", warehouse: "P&C", role: "manager" },
+    { username: "manager", password: "123456", warehouse: "Manager", role: "manager" },
 
     { username: "pharmaUser", password: "123456", warehouse: "PHARMA", role: "user" },
 
