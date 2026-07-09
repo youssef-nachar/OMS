@@ -882,7 +882,7 @@ async function openCommentModal(orderNo, comment) {
         closedSnap.exists() &&
         closedSnap.val().closed === true;
 
-    const snap = await get(ref(db, "orderComments"));
+  const snap = await get(ref(db, "orderCommentsChat"));
 
     let replies = [];
 
@@ -1108,7 +1108,7 @@ async function saveCommentReply() {
 
     if (!text) return;
 
-    await push(ref(db, "orderComments"), {
+  await push(ref(db, "orderCommentsChat"), {
         orderNo: currentCommentOrder,
         comment: text,
         type: "reply",
@@ -1122,7 +1122,7 @@ async function saveCommentReply() {
     renderChat(currentOriginalComment, replies);
 }
 async function getReplies() {
-    const snap = await get(ref(db, "orderComments"));
+  const snap = await get(ref(db, "orderCommentsChat"));
 
     if (!snap.exists()) return [];
 
@@ -2602,17 +2602,15 @@ window.saveOrderComment = async function(){
         alert("Please complete all fields");
         return;
     }
-
-    await push(
-        ref(db,"orderComments"),
-        {
-            orderNo,
-            comment,
-            by,
-            createdAt:new Date().toLocaleString()
-        }
-    );
-
+await push(
+    ref(db,"orderComments"),
+    {
+        orderNo,
+        comment,
+        by,
+        createdAt:new Date().toLocaleString()
+    }
+);
     document.getElementById("orderCommentText").value="";
 
     loadOrderComments();
@@ -2628,7 +2626,7 @@ window.loadOrderComments = async function(){
         ?.value
         ?.toLowerCase() || "";
 
-    const snap = await get(ref(db,"orderComments"));
+   const snap = await get(ref(db,"orderCommentsTab"));
 
     if(!snap.exists()){
         container.innerHTML=
@@ -2714,11 +2712,11 @@ const repliesHtml =
     </div>
 
     <div class="comment-meta">
-        ${row.by || 'System'} • ${row.createdAt}
+     ${row.by || 'System'} • ${row.createdAt}
     </div>
 
 <div class="comment-text">
-    ${row.comment}
+  ${row.comment}
 </div>
 
 ${repliesHtml}
@@ -2772,10 +2770,10 @@ window.deleteReply = async function(
     if (!confirmed) return;
 
     await remove(
-        ref(
-            db,
-            `orderComments/${commentId}/replies/${replyId}`
-        )
+ref(
+    db,
+    `orderCommentsTab/${commentId}/replies/${replyId}`
+)
     );
 
     loadOrderComments();
@@ -2818,10 +2816,10 @@ window.saveReply = async function(){
     }
 
     await push(
-        ref(
-            db,
-            `orderComments/${currentReplyCommentId}/replies`
-        ),
+ref(
+    db,
+    `orderCommentsTab/${currentReplyCommentId}/replies`
+),
         {
             comment,
             by:
@@ -2845,10 +2843,10 @@ window.deleteComment = async function(commentId){
     if (!confirmed) return;
 
     await remove(
-        ref(
-            db,
-            `orderComments/${commentId}`
-        )
+ref(
+    db,
+    `orderCommentsTab/${commentId}`
+)
     );
 
     loadOrderComments();
