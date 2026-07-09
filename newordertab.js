@@ -2,7 +2,28 @@ let recentOrders = [];
 let selectedFromDate = "";
 let selectedToDate = "";
 let unrepliedOnly = false;
+
 let ordersWithReplies = new Set();
+let orderCommentsCache = {};
+
+function listenToOrderComments() {
+
+    onValue(ref(db, "orderCommentsData"), snap => {
+
+        orderCommentsCache = snap.val() || {};
+console.log("Comments Cache:", orderCommentsCache);
+        if (!allOrders) return;
+
+        allOrders.forEach(order => {
+            order.comment =
+                orderCommentsCache[order.orderNo]?.comment || "";
+        });
+
+        renderRecentOrders();
+
+    });
+
+}
 function showNewOrderTab() {
 
     const dashboardHeader = document.getElementById("dashboardHeader");
@@ -24,8 +45,8 @@ function showNewOrderTab() {
         if (div.id !== "newOrderTab") div.classList.add("hidden");
     });
     document.getElementById("newOrderTab").classList.remove("hidden");
-
-    listenToOrders(); // 🔥 تحديث الطلبات دائماً
+listenToOrderComments();
+listenToOrders();
 
     const warehouseInput = document.getElementById("newWarehouseName");
     const userWarehouse = localStorage.getItem("currentWarehouse");
@@ -824,6 +845,15 @@ const firebaseOrders = [...list1, ...list2];
         const currentWarehouse = (localStorage.getItem("currentWarehouse") || "").trim().toUpperCase();
 
         let mergedOrders = mergeOrdersByNumber(firebaseOrders);
+mergedOrders.forEach(order => {
+
+    const cachedComment = orderCommentsCache[order.orderNo]?.comment;
+
+    if (cachedComment !== undefined) {
+        order.comment = cachedComment;
+    }
+
+});
 
 if (role === "manager" || isAllWarehouse) {
     allOrders = mergedOrders;
@@ -1030,21 +1060,22 @@ function showOrderPreview(order) {
     // تحميل التعليق السابق داخل التكست
     textarea.value = order.comment || "";
 
-    saveBtn.addEventListener("click", function () {
+saveBtn.addEventListener("click", async function () {
 
-        const value = textarea.value.trim();
+    const value = textarea.value.trim();
 
-        order.comment = value;
+    order.comment = value;
 
-        savedCommentDiv.textContent = value ? "📝 " + value : "";
+    await update(
+        ref(db, `orders/${order.firebaseKey}`),
+        {
+            comment:value
+        }
+    );
 
-        saveCommentsToStorage();
+    savedCommentDiv.textContent = value ? "📝 " + value : "";
 
-        textarea.value = "";
-
-        // showToast("💾 Comment saved");
-    });
-
+});
     list.prepend(orderCard);
     previewContainer.classList.remove("hidden");
 
@@ -1301,54 +1332,96 @@ async function deleteOrder() {
 }
 document.getElementById("deleteOrderBtn")
     .addEventListener("click", deleteOrder);
-function saveEditedOrder() {
+async function saveEditedOrder() {
 
     const newOrderNo = document.getElementById("editOrderNumber").value.trim();
     const comment = document.getElementById("editOrderComment").value.trim();
 
-    const paths = ["orders", "orders_new"];
+    console.log("SAVE CLICKED");
 
-paths.forEach(path => {
-
-    get(ref(db, path)).then(snapshot => {
-
-        snapshot.forEach(child => {
-
-            const data = child.val();
-
-            if (data.orderNo === window.editingOrderNo) {
-
-                update(ref(db, `${path}/${child.key}`), {
-                    orderNo: newOrderNo,
-                    comment: comment,
-                    history: [
-                        ...(data.history || []),
-                        {
-                            action: "edited",
-                            date: new Date().toISOString(),
-                            by: localStorage.getItem("currentWarehouse"),
-                            oldOrderNo: data.orderNo,
-                            newOrderNo: newOrderNo,
-                            oldComment: data.comment || "",
-                            newComment: comment
-                        }
-                    ]
-                });
-
-            }
-
-        });
-
+    console.log({
+        editingOrderNo: window.editingOrderNo,
+        newOrderNo,
+        comment
     });
 
-});
+    if (!window.editingOrderNo) {
+        console.error("No order selected for editing");
+        return;
+    }
 
-  
+    const paths = ["orders", "orders_new"];
+
+    let updated = false;
+
+    for (const path of paths) {
+
+        const snapshot = await get(ref(db, path));
+
+        if (!snapshot.exists()) {
+            console.log("No data in:", path);
+            continue;
+        }
+
+
+        for (const child of snapshot.val() ? Object.entries(snapshot.val()) : []) {
+
+            const childKey = child[0];
+            const data = child[1];
+
+
+            if (
+                String(data.orderNo || "").trim().toUpperCase() ===
+                String(window.editingOrderNo || "").trim().toUpperCase()
+            ) {
+
+
+                console.log("ORDER FOUND:", path, childKey, data);
+
+
+                const newHistory = [
+                    ...(data.history || []),
+                    {
+                        action: "edited",
+                        date: new Date().toISOString(),
+                        by: localStorage.getItem("currentWarehouse") || "unknown",
+                        oldOrderNo: data.orderNo,
+                        newOrderNo: newOrderNo,
+                        oldComment: data.comment || "",
+                        newComment: comment
+                    }
+                ];
+
+
+                await update(
+                    ref(db, `${path}/${childKey}`),
+                    {
+                        orderNo: newOrderNo,
+                        comment: comment,
+                        history: newHistory
+                    }
+                );
+
+
+                console.log("UPDATED SUCCESSFULLY:", path, childKey);
+
+                updated = true;
+            }
+        }
+    }
+
+
+    if (!updated) {
+        console.error(
+            "ORDER NOT FOUND:",
+            window.editingOrderNo
+        );
+    } else {
+        console.log("SAVE COMPLETED");
+    }
+
 
     closeEditModal();
-
-    // showToast("Order updated");
-
 }
 function closeEditIfOutside(e) {
 
@@ -1779,4 +1852,3 @@ function toggleUnrepliedFilter() {
 
     renderRecentOrders();
 }
-
