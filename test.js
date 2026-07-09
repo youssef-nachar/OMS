@@ -2602,16 +2602,20 @@ window.saveOrderComment = async function(){
         alert("Please complete all fields");
         return;
     }
-await push(
-    ref(db,"orderComments"),
-    {
-        orderNo,
-        comment,
-        by,
-        createdAt:new Date().toLocaleString()
-    }
-);
+
+    await push(
+        ref(db,"orderCommentsTab"),
+        {
+            orderNo,
+            comment,
+            by,
+            createdAt:new Date().toLocaleString()
+        }
+    );
+
+    document.getElementById("commentOrderNumber").value="";
     document.getElementById("orderCommentText").value="";
+    document.getElementById("commentBy").value="";
 
     loadOrderComments();
 };
