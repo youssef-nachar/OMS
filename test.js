@@ -2590,38 +2590,63 @@ function openOrderCommentsTab() {
 window.saveOrderComment = async function(){
 
     const orderNo =
-        document.getElementById("commentOrderNumber").value.trim();
+        document.getElementById("commentOrderNumber")
+        .value.trim()
+        .toUpperCase();
 
     const comment =
-        document.getElementById("orderCommentText").value.trim();
+        document.getElementById("orderCommentText")
+        .value.trim();
+        const faultBy =
+    document.getElementById("faultBy")
+    .value.trim();
+const selectedDate =
+    document.getElementById("complainDate").value;
 
-    const by =
-        document.getElementById("commentBy").value.trim();
-
+const complainDate =
+    selectedDate || new Date().toISOString().slice(0,10);
     if(!orderNo || !comment){
         alert("Please complete all fields");
         return;
     }
 
-    await push(
-        ref(db,"orderCommentsTab"),
-        {
-            orderNo,
-            comment,
-            by,
-            createdAt:new Date().toLocaleString()
-        }
+    const order = allOrders.find(
+        o => o.orderNo.toUpperCase() === orderNo
     );
 
-    document.getElementById("commentOrderNumber").value="";
-    document.getElementById("orderCommentText").value="";
-    document.getElementById("commentBy").value="";
+    // مستودع الطلب
+    const by = order
+        ? order.warehouses
+            .filter(w => w.base.toUpperCase() !== "PACKING STATION")
+            .map(w => w.base)
+            .join(", ")
+        : "Unknown";
 
+    // المستخدم الذي كتب التعليق
+    const createdBy =
+        localStorage.getItem("currentWarehouse") || "Manager";
+
+    await push(ref(db,"orderCommentsTab"),{
+    orderNo,
+    comment,
+    faultBy,
+    by,
+    createdBy,
+    createdAt: complainDate
+});
+
+    document.getElementById("commentOrderNumber").value = "";
+    document.getElementById("orderCommentText").value = "";
+document.getElementById("complainDate").value = "";
+document.getElementById("faultBy").value = "";
     loadOrderComments();
 };
 
-window.loadOrderComments = async function(){
-
+window.loadOrderComments = async function()
+{
+const faultFilter =
+    document.getElementById("faultByFilter")
+    ?.value || "";
     const container =
         document.getElementById("orderCommentsList");
 
@@ -2641,7 +2666,26 @@ window.loadOrderComments = async function(){
     let html="";
 
     const data = snap.val();
+const filter =
+    document.getElementById("faultByFilter");
 
+const currentValue = filter.value;
+
+const faults = [
+    ...new Set(
+        Object.values(data)
+            .map(r => (r.faultBy || "").trim())
+            .filter(v => v)
+    )
+].sort();
+
+filter.innerHTML =
+    `<option value="">All Fault By</option>` +
+    faults.map(f =>
+        `<option value="${f}">${f}</option>`
+    ).join("");
+
+filter.value = currentValue;
     Object.entries(data)
     .reverse()
     .forEach(([id,row])=>{
@@ -2704,9 +2748,19 @@ const repliesHtml =
 </div>
         </div>
     `).join("");
-        if(search &&
-           !row.orderNo.toLowerCase().includes(search))
-           return;
+        if (
+    search &&
+    !row.orderNo.toLowerCase().includes(search)
+){
+    return;
+}
+
+if (
+    faultFilter &&
+    (row.faultBy || "") !== faultFilter
+){
+    return;
+}
 
        html += `
 <div class="comment-item">
@@ -2715,9 +2769,73 @@ const repliesHtml =
         ${row.orderNo}
     </div>
 
-    <div class="comment-meta">
-     ${row.by || 'System'} • ${row.createdAt}
+<div class="comment-meta">
+
+
+ <div class="comment-meta">
+
+    <div style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+        flex-wrap:wrap;
+    ">
+
+        <span style="
+            color:#16a34a;
+            font-weight:700;
+            font-size:14px;
+        ">
+            👤 ${row.createdBy || "Unknown"}
+        </span>
+
+        <span style="
+            color:#94a3b8;
+            font-size:12px;
+        ">
+            ${row.createdAt}
+        </span>
+<div style="
+    margin-top:6px;
+    color:#f59e0b;
+    font-size:13px;
+    font-weight:600;
+">
+    Fault By: ${row.faultBy || "-"}
+</div>
     </div>
+
+    <div style="
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+        margin-top:8px;
+    ">
+        ${
+            (row.by || "Unknown")
+            .split(",")
+            .map(w => `
+                <span style="
+                    display:inline-flex;
+                    align-items:center;
+                    padding:5px 12px;
+                    background:#eff6ff;
+                    color:#2563eb;
+                    border:1px solid #bfdbfe;
+                    border-radius:999px;
+                    font-size:12px;
+                    font-weight:600;
+                ">
+                    📦 ${w.trim()}
+                </span>
+            `)
+            .join("")
+        }
+    </div>
+
+</div>
+
+</div>
 
 <div class="comment-text">
   ${row.comment}
@@ -2758,7 +2876,7 @@ ${repliesHtml}
     });
     document.getElementById("commentOrderNumber").value = "";
     document.getElementById("orderCommentText").value = "";
-    document.getElementById("commentBy").value = "";
+    
 
     container.innerHTML = html;
 };
@@ -2912,238 +3030,112 @@ function showAdvancedDashboard() {
         refreshAdvancedDashboard();
     }, 30000);
 }
-function loadAdvancedDashboard(){
-
-    const container=document.getElementById("advancedDashboardContent");
-
-    container.innerHTML=`
-
-<div class="adv-grid">
-
-    <div class="adv-card">
-        <h3>Total Orders</h3>
-        <div id="advTotal" class="adv-number">0</div>
-    </div>
-
-    <div class="adv-card">
-        <h3>Pending</h3>
-        <div id="advPending" class="adv-number">0</div>
-    </div>
-
-    <div class="adv-card">
-        <h3>In Packing</h3>
-        <div id="advPacking" class="adv-number">0</div>
-    </div>
-
-    <div class="adv-card">
-        <h3>Ready</h3>
-        <div id="advReady" class="adv-number">0</div>
-    </div>
-
-    <div class="adv-card">
-        <h3>Distributed</h3>
-        <div id="advDistributed" class="adv-number">0</div>
-    </div>
-
-</div>
-
-<div class="adv-placeholder">
-
-Charts will be added in Part 2
-
-</div>
-
-`;
-
-    setTimeout(() => {
-    refreshAdvancedDashboard();
-}, 100);
-
-}
-function refreshAdvancedDashboard(){
-
-    const orders=applyFilters();
-
-    document.getElementById("advTotal").innerHTML=
-        orders.length;
-
-    document.getElementById("advPending").innerHTML=
-        orders.filter(o=>
-            o.status=="pending" ||
-            o.status=="partial"
-        ).length;
-
-    document.getElementById("advPacking").innerHTML=
-        orders.filter(o=>
-            o.status=="completed"
-        ).length;
-
-    document.getElementById("advReady").innerHTML=
-        orders.filter(o=>
-            o.status=="ready_to_distribute"
-        ).length;
-
-    document.getElementById("advDistributed").innerHTML=
-        orders.filter(o=>
-            o.status=="distributed"
-        ).length;
-        drawAdvancedCharts(orders);
-
-}
-function loadAdvancedDashboard(){
+function loadAdvancedDashboard() {
 
     const container = document.getElementById("advancedDashboardContent");
 
     container.innerHTML = `
 
-<div class="adv-top-cards">
+      <div class="adv-row"
+style="
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:20px;
+">
 
-    <div class="adv-stat-card green">
-        <div class="stat-title">Total Orders</div>
-        <div class="stat-value" id="advTotal">0</div>
-        <div class="stat-sub">Today's Orders</div>
-    </div>
-
-    <div class="adv-stat-card orange">
-        <div class="stat-title">Pending</div>
-        <div class="stat-value" id="advPending">0</div>
-        <div class="stat-sub">Waiting Packing</div>
-    </div>
-
-    <div class="adv-stat-card blue">
-        <div class="stat-title">In Packing</div>
-        <div class="stat-value" id="advPacking">0</div>
-        <div class="stat-sub">Packing Station</div>
-    </div>
-
-    <div class="adv-stat-card cyan">
-        <div class="stat-title">Ready</div>
-        <div class="stat-value" id="advReady">0</div>
-        <div class="stat-sub">Ready To Distribute</div>
-    </div>
-
-    <div class="adv-stat-card purple">
-        <div class="stat-title">Distributed</div>
-        <div class="stat-value" id="advDistributed">0</div>
-        <div class="stat-sub">Completed Delivery</div>
-    </div>
-
-</div>
-
-
-<div class="adv-row">
-
-    <div class="adv-panel">
-
+    <!-- Orders By Status -->
+    <div class="adv-panel" style="height:500px;">
         <div class="panel-title">
-            Multi Warehouse Orders
+            Orders By Status
         </div>
-
-        <canvas id="multiWarehouseChart"></canvas>
-
+        <canvas id="orderStatusChart"></canvas>
     </div>
 
-    <div class="adv-panel">
-
+    <!-- Order Trend -->
+    <div class="adv-panel" style="height:500px;">
         <div class="panel-title">
-            Single Warehouse Orders
+            Order Trend
         </div>
-
-        <canvas id="singleWarehouseChart"></canvas>
-
+        <canvas id="orderTrendChart"></canvas>
     </div>
 
-</div>
-
-
-<div class="adv-row">
-
-    <div class="adv-panel large">
-
-        <div class="panel-title">
-            Sales Order Details
-        </div>
-
-        <canvas id="salesChart"></canvas>
-
-    </div>
-
-    <div class="adv-panel large">
-
-        <div class="panel-title">
-            Tracking Overview
-        </div>
-
-        <canvas id="trackingChart"></canvas>
-
-    </div>
-
-</div>
-
-
-<div class="adv-row">
-
-    <div class="adv-panel">
-
-        <div class="panel-title">
-            Order Status Distribution
-        </div>
-
-        <canvas id="statusChart"></canvas>
-
-    </div>
-
-    <div class="adv-panel">
-
-        <div class="panel-title">
-            Orders Trend
-        </div>
-
-        <canvas id="trendChart"></canvas>
-
-    </div>
-
-</div>
-
-
-<div class="adv-row">
-
-    <div class="adv-panel">
-
+    <!-- Warehouse -->
+    <div class="adv-panel" style="height:520px;">
         <div class="panel-title">
             Warehouse Performance
         </div>
-
-        <canvas id="warehouseRadar"></canvas>
-
+        <canvas id="warehousePerformanceChart"></canvas>
     </div>
 
-    <div class="adv-panel">
+    <!-- Orders By Day -->
+    <div class="adv-panel" style="height:520px;">
 
-        <div class="panel-title">
-            Orders By Time
+        <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:10px;
+        ">
+
+            <div class="panel-title">
+                Orders By Day
+            </div>
+
+            <div style="display:flex;gap:10px;">
+
+                <select id="yearFilter"
+                        onchange="refreshAdvancedDashboard()"
+                        style="
+                        background:#1f2937;
+                        color:white;
+                        border:1px solid #374151;
+                        padding:6px 12px;
+                        border-radius:6px;
+                        ">
+
+                    <option>2024</option>
+                    <option>2025</option>
+                    <option selected>2026</option>
+
+                </select>
+
+                <select id="quarterFilter"
+                        onchange="refreshAdvancedDashboard()"
+                        style="
+                        background:#1f2937;
+                        color:white;
+                        border:1px solid #374151;
+                        padding:6px 12px;
+                        border-radius:6px;
+                        ">
+
+                    <option value="1">Q1</option>
+                    <option value="2">Q2</option>
+                    <option value="3">Q3</option>
+                    <option value="4">Q4</option>
+
+                </select>
+
+            </div>
+
         </div>
 
-      <div id="heatmapGrid"></div>
-    </div>
-
-    <div class="adv-panel">
-
-        <div class="panel-title">
-            Cancellation & Returns
-        </div>
-
-        <canvas id="returnChart"></canvas>
+        <canvas id="ordersByDayChart"></canvas>
 
     </div>
 
 </div>
-
-`;
+    `;
 
     setTimeout(() => {
-    refreshAdvancedDashboard();
-}, 100);
+        refreshAdvancedDashboard();
+    }, 100);
+}
+function refreshAdvancedDashboard() {
+
+    const orders = applyFilters();
+
+    drawAdvancedCharts(orders);
 
 }
 document.querySelectorAll(".adv-stat-card").forEach(card=>{
@@ -3218,315 +3210,784 @@ labels:{color:"white"}
 );
 });
 
-function destroyAdvancedCharts(){
+function destroyAdvancedCharts() {
 
-    Object.values(advCharts).forEach(chart=>{
+    Object.values(advCharts).forEach(chart => {
 
-        if(chart){
+        if (chart) {
 
             chart.destroy();
 
-            const canvas = chart.canvas;
-
-            if(canvas){
-
-                const ctx = canvas.getContext("2d");
-
-                ctx.clearRect(
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height
-                );
-
-            }
-
         }
 
     });
 
-    advCharts={};
+    advCharts = {};
 
 }
 
-function drawAdvancedCharts(orders){
+function drawAdvancedCharts(orders) {
 
     destroyAdvancedCharts();
 
-    const pending =
-        orders.filter(o=>o.status=="pending" || o.status=="partial").length;
+    // ============================
+    // Orders By Status
+    // ============================
 
-    const packing =
-        orders.filter(o=>o.status=="completed").length;
+    const statusCanvas = document.getElementById("orderStatusChart");
 
-    const ready =
-        orders.filter(o=>o.status=="ready_to_distribute").length;
+    if (statusCanvas) {
 
-    const distributed =
-        orders.filter(o=>o.status=="distributed").length;
+        const pending = orders.filter(o => o.status === "pending").length;
 
-    const canceled =
-        orders.filter(o=>o.status=="canceled").length;
+        const partial = orders.filter(o => o.status === "partial").length;
 
-    const returned =
-        orders.filter(o=>o.status=="returned").length;
+        const inPacking = orders.filter(o => o.status === "completed").length;
 
-    //------------------------------------------------
-    // STATUS DONUT
-    //------------------------------------------------
+        const openComments = orders.filter(o =>
+            o.comment &&
+            o.comment.trim() !== ""
+        ).length;
 
-    advCharts.status = new Chart(
+        advCharts.status = new Chart(statusCanvas, {
 
-        document.getElementById("statusChart"),
+            type: "doughnut",
 
-        {
+            data: {
 
-            type:"doughnut",
-
-            data:{
-
-                labels:[
+                labels: [
                     "Pending",
-                    "Packing",
-                    "Ready",
-                    "Distributed"
+                    "Partial",
+                    "Open Comments",
+                    "In-Packing"
                 ],
 
-                datasets:[{
+                datasets: [{
 
-                    data:[
+                    data: [
                         pending,
-                        packing,
-                        ready,
-                        distributed
-                    ]
+                        partial,
+                        openComments,
+                        inPacking
+                    ],
+
+                    backgroundColor: [
+                        "#f59e0b",
+                        "#fb923c",
+                        "#ef4444",
+                        "#22c55e"
+                    ],
+
+                    borderWidth: 2
 
                 }]
 
             },
 
-            options:{
-                responsive:true,
-                plugins:{
-                    legend:{
-                        labels:{
-                            color:"white"
-                        }
-                    }
-                }
-            }
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    legend: {
+
+    display: true,
+
+    position: "right",
+
+    align: "start",
+
+    labels: {
+
+        color: "#fff",
+
+        usePointStyle: true,
+
+        pointStyle: "rectRounded",
+
+        padding: 22,
+
+        boxWidth: 14,
+
+        boxHeight: 14,
+
+        font: {
+
+            size: 13,
+
+            family: "Arial",
+
+            weight: "600"
 
         }
 
-    );
+    }
 
-    //------------------------------------------------
-    // RETURNS
-    //------------------------------------------------
+},
 
-    advCharts.returns = new Chart(
+                    title: {
 
-        document.getElementById("returnChart"),
+                        display: true,
 
-        {
+                        text: "Orders By Status",
 
-            type:"pie",
+                        color: "white",
 
-            data:{
-
-                labels:["Canceled","Returned"],
-
-                datasets:[{
-
-                    data:[
-
-                        canceled,
-
-                        returned
-
-                    ]
-
-                }]
-
-            },
-
-            options:{
-
-                plugins:{
-                    legend:{
-                        labels:{
-                            color:"white"
+                        font: {
+                            size: 18,
+                            weight: "bold"
                         }
+
                     }
+
                 }
 
             }
 
+        });
+
+    }
+
+    // ============================
+    // Order Trend
+    // ============================
+
+    const trendCanvas = document.getElementById("orderTrendChart");
+
+    if (trendCanvas) {
+
+        const trend = {};
+
+        orders.forEach(order => {
+
+            const dateValue =
+                order.created_at ||
+                order.date ||
+                order.createdDate ||
+                order.timestamp;
+
+            if (!dateValue) return;
+
+            const d = new Date(dateValue);
+
+            if (isNaN(d)) return;
+
+            const hour = d.getHours().toString().padStart(2, "0") + ":00";
+
+            trend[hour] = (trend[hour] || 0) + 1;
+
+        });
+
+        // ترتيب الساعات من 00 إلى 23
+        const labels = [];
+
+        const values = [];
+
+        for (let i = 0; i < 24; i++) {
+
+            const h = i.toString().padStart(2, "0") + ":00";
+
+            labels.push(h);
+
+            values.push(trend[h] || 0);
+
         }
 
-    );
+        advCharts.orderTrend = new Chart(trendCanvas, {
 
-    //------------------------------------------------
-    // MULTI WH
-    //------------------------------------------------
+            type: "line",
 
-    const multi =
-        orders.filter(o=>o.warehouseCount>1).length;
+            data: {
 
-    const single =
-        orders.filter(o=>o.warehouseCount==1).length;
+                labels: labels,
 
-    advCharts.multi = new Chart(
+                datasets: [{
 
-        document.getElementById("multiWarehouseChart"),
+                    label: "Orders",
 
-        {
+                    data: values,
 
-            type:"bar",
+                    borderColor: "#3b82f6",
 
-            data:{
+                    backgroundColor: "rgba(59,130,246,0.15)",
 
-                labels:["Multi","Single"],
+                    fill: true,
 
-                datasets:[{
+                    borderWidth: 3,
 
-                    data:[
+                    tension: 0.35,
 
-                        multi,
+                    pointRadius: 4,
 
-                        single
-
-                    ]
+                    pointHoverRadius: 6
 
                 }]
 
             },
 
-            options:{
-                scales:{
-                    x:{
-                        ticks:{color:"white"}
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                interaction: {
+
+                    mode: "index",
+
+                    intersect: false
+
+                },
+
+                plugins: {
+
+                    legend: {
+
+    display: true,
+
+    position: "right",
+
+    align: "start",
+
+    labels: {
+
+        color: "#fff",
+
+        usePointStyle: true,
+
+        pointStyle: "rectRounded",
+
+        padding: 22,
+
+        boxWidth: 14,
+
+        boxHeight: 14,
+
+        font: {
+
+            size: 13,
+
+            family: "Arial",
+
+            weight: "600"
+
+        }
+
+    }
+
+},
+
+                    title: {
+
+                        display: true,
+
+                        text: "Order Trend",
+
+                        color: "white",
+
+                        font: {
+
+                            size: 18,
+
+                            weight: "bold"
+
+                        }
+
+                    }
+
+                },
+
+                scales: {
+
+                    x: {
+
+                        title: {
+
+                            display: true,
+
+                            text: "Time",
+
+                            color: "white"
+
+                        },
+
+                        ticks: {
+
+                            color: "white"
+
+                        },
+
+                        grid: {
+
+                            color: "rgba(255,255,255,0.08)"
+
+                        }
+
                     },
-                    y:{
-                        ticks:{color:"white"}
+
+                    y: {
+
+                        beginAtZero: true,
+
+                        title: {
+
+                            display: true,
+
+                            text: "Orders",
+
+                            color: "white"
+
+                        },
+
+                        ticks: {
+
+                            color: "white",
+
+                            precision: 0
+
+                        },
+
+                        grid: {
+
+                            color: "rgba(255,255,255,0.08)"
+
+                        }
+
                     }
-                },
-                plugins:{
-                    legend:{display:false}
+
                 }
+
             }
 
-        }
+        });
 
-    );
+    }
+// ============================
+// Warehouse Performance
+// ============================
 
-    //------------------------------------------------
-    // SINGLE CHART
-    //------------------------------------------------
+const warehouseCanvas =
+    document.getElementById("warehousePerformanceChart");
 
-    advCharts.single = new Chart(
+if (warehouseCanvas) {
 
-        document.getElementById("singleWarehouseChart"),
+    const warehouses = {};
 
-        {
+    orders.forEach(order => {
 
-            type:"bar",
+        if (!order.warehouses) return;
 
-            data:{
+        order.warehouses.forEach(w => {
 
-                labels:[
-                    "Pending",
-                    "Packing",
-                    "Distributed"
-                ],
+            const name = w.base || "Unknown";
 
-                datasets:[{
+            if (!warehouses[name]) {
 
-                    data:[
+                warehouses[name] = {
 
-                        pending,
+                    pending: 0,
+                    packing: 0,
+                    distributed: 0
 
-                        packing,
+                };
 
-                        distributed
-
-                    ]
-
-                }]
-
-            },
-
-            options:{
-                scales:{
-                    x:{ticks:{color:"white"}},
-                    y:{ticks:{color:"white"}}
-                },
-                plugins:{
-                    legend:{display:false}
-                }
             }
 
-        }
+            if (order.status === "pending")
+                warehouses[name].pending++;
 
-    );
+            else if (order.status === "completed")
+                warehouses[name].packing++;
 
-    //------------------------------------------------
-    // SALES LINE
-    //------------------------------------------------
+            else if (order.status === "distributed")
+                warehouses[name].distributed++;
 
-    const daily={};
-
-    orders.forEach(order=>{
-
-        const d=(order.date||"").substring(0,10);
-
-        if(!daily[d]) daily[d]=0;
-
-        daily[d]++;
+        });
 
     });
 
-    advCharts.sales=new Chart(
+    const labels = ["Total"];
 
-        document.getElementById("salesChart"),
+    const pending = [0];
 
-        {
+    const packing = [0];
 
-            type:"line",
+    const distributed = [0];
 
-            data:{
+    Object.keys(warehouses).forEach(name => {
 
-                labels:Object.keys(daily),
+        labels.push(name);
 
-                datasets:[{
+        pending.push(warehouses[name].pending);
 
-                    label:"Orders",
+        packing.push(warehouses[name].packing);
 
-                    data:Object.values(daily),
+        distributed.push(warehouses[name].distributed);
 
-                    tension:.4,
+        pending[0] += warehouses[name].pending;
 
-                    fill:false
+        packing[0] += warehouses[name].packing;
 
-                }]
+        distributed[0] += warehouses[name].distributed;
+
+    });
+
+    advCharts.warehousePerformance =
+        new Chart(warehouseCanvas, {
+
+            type: "bar",
+
+            data: {
+
+                labels,
+
+                datasets: [
+
+                    {
+
+                        label: "Pending",
+
+                        data: pending,
+
+                        backgroundColor: "#f59e0b"
+
+                    },
+
+                    {
+
+                        label: "In Packing",
+
+                        data: packing,
+
+                        backgroundColor: "#22c55e"
+
+                    },
+
+                    {
+
+                        label: "Distributed",
+
+                        data: distributed,
+
+                        backgroundColor: "#3b82f6"
+
+                    }
+
+                ]
 
             },
 
-            options:{
+            options: {
 
-                plugins:{
-                    legend:{
-                        labels:{
-                            color:"white"
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                indexAxis: "y",
+
+                plugins: {
+
+                    legend: {
+
+                        position: "right",
+
+                        labels: {
+
+                            color: "#fff"
+
                         }
+
+                    },
+
+                    title: {
+
+                        display: true,
+
+                        text: "Warehouse Performance",
+
+                        color: "#fff",
+
+                        font: {
+
+                            size: 18,
+
+                            weight: "bold"
+
+                        }
+
                     }
+
                 },
 
-                scales:{
+                scales: {
 
-                    x:{ticks:{color:"white"}},
+                    x: {
 
-                    y:{ticks:{color:"white"}}
+                        stacked: true,
+
+                        ticks: {
+
+                            color: "#fff"
+
+                        },
+
+                        grid: {
+
+                            color: "rgba(255,255,255,.08)"
+
+                        }
+
+                    },
+
+                    y: {
+
+                        stacked: true,
+
+                        ticks: {
+
+                            color: "#fff"
+
+                        },
+
+                        grid: {
+
+                            color: "rgba(255,255,255,.08)"
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+}
+
+  // ============================
+// Orders By Day (Quarter + Year)
+// ============================
+
+const monthCanvas =
+    document.getElementById("ordersByDayChart");
+
+if (monthCanvas) {
+
+    const quarter =
+        Number(document.getElementById("quarterFilter")?.value || 1);
+
+    const selectedYear =
+        Number(document.getElementById("yearFilter")?.value || new Date().getFullYear());
+
+    const quarterMonths = {
+
+        1: [0, 1, 2],      // Jan-Mar
+        2: [3, 4, 5],      // Apr-Jun
+        3: [6, 7, 8],      // Jul-Sep
+        4: [9, 10, 11]     // Oct-Dec
+
+    };
+
+    const days = {};
+
+    orders.forEach(order => {
+
+        const dateValue =
+            order.created_at ||
+            order.date ||
+            order.createdDate ||
+            order.timestamp;
+
+        if (!dateValue) return;
+
+        const d = new Date(dateValue);
+
+        if (isNaN(d)) return;
+
+        // فلترة السنة
+        if (d.getFullYear() !== selectedYear)
+            return;
+
+        // فلترة الربع
+        if (!quarterMonths[quarter].includes(d.getMonth()))
+            return;
+
+        const day = d.getDate();
+
+        days[day] = (days[day] || 0) + 1;
+
+    });
+
+    const labels = [];
+    const values = [];
+
+    for (let i = 1; i <= 31; i++) {
+
+        labels.push(i.toString());
+
+        values.push(days[i] || 0);
+
+    }
+
+    advCharts.ordersByDay = new Chart(monthCanvas, {
+
+        type: "line",
+
+        data: {
+
+            labels,
+
+            datasets: [{
+
+                label: `Orders (${selectedYear} - Q${quarter})`,
+
+                data: values,
+
+                borderColor: "#8b5cf6",
+
+                backgroundColor: "rgba(139,92,246,.15)",
+
+                fill: true,
+
+                borderWidth: 3,
+
+                tension: 0.35,
+
+                pointRadius: 4,
+
+                pointHoverRadius: 6
+
+            }]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            interaction: {
+
+                mode: "index",
+
+                intersect: false
+
+            },
+
+            plugins: {
+
+                legend: {
+
+                    position: "right",
+
+                    labels: {
+
+                        color: "#fff",
+
+                        usePointStyle: true,
+
+                        pointStyle: "rectRounded",
+
+                        padding: 22,
+
+                        boxWidth: 14,
+
+                        boxHeight: 14,
+
+                        font: {
+
+                            size: 13,
+
+                            family: "Arial",
+
+                            weight: "600"
+
+                        }
+
+                    }
+
+                },
+
+                title: {
+
+                    display: true,
+
+                    text: `Orders By Day - Q${quarter} (${selectedYear})`,
+
+                    color: "#fff",
+
+                    font: {
+
+                        size: 18,
+
+                        weight: "bold"
+
+                    }
+
+                }
+
+            },
+
+            scales: {
+
+                x: {
+
+                    title: {
+
+                        display: true,
+
+                        text: "Day",
+
+                        color: "#fff"
+
+                    },
+
+                    ticks: {
+
+                        color: "#fff"
+
+                    },
+
+                    grid: {
+
+                        color: "rgba(255,255,255,.08)"
+
+                    }
+
+                },
+
+                y: {
+
+                    beginAtZero: true,
+
+                    title: {
+
+                        display: true,
+
+                        text: "Orders",
+
+                        color: "#fff"
+
+                    },
+
+                    ticks: {
+
+                        color: "#fff",
+
+                        precision: 0
+
+                    },
+
+                    grid: {
+
+                        color: "rgba(255,255,255,.08)"
+
+                    }
 
                 }
 
@@ -3534,147 +3995,9 @@ function drawAdvancedCharts(orders){
 
         }
 
-    );
-//------------------------------------------------
-// TRACKING OVERVIEW
-//------------------------------------------------
-
-const tracking = {
-    Received: 0,
-    Packing: 0,
-    Ready: 0,
-    Distributed: 0
-};
-
-orders.forEach(order=>{
-
-    tracking.Received++;
-
-    if(order.status=="completed")
-        tracking.Packing++;
-
-    if(order.status=="ready_to_distribute")
-        tracking.Ready++;
-
-    if(order.status=="distributed")
-        tracking.Distributed++;
-
-});
-
-advCharts.tracking = new Chart(
-
-document.getElementById("trackingChart"),
-
-{
-
-type:"line",
-
-data:{
-
-labels:Object.keys(tracking),
-
-datasets:[{
-
-label:"Orders",
-
-data:Object.values(tracking),
-
-fill:true,
-
-tension:.45
-
-}]
-
-},
-
-options:{
-
-responsive:true,
-
-plugins:{
-
-legend:{
-labels:{color:"white"}
-}
-
-},
-
-scales:{
-
-x:{ticks:{color:"white"}},
-
-y:{ticks:{color:"white"}}
+    });
 
 }
-
-}
-
-});
-//------------------------------------------------
-// ORDERS TREND
-//------------------------------------------------
-
-const trend = {};
-
-orders.forEach(order=>{
-
-    const d=(order.date||"").substring(0,10);
-
-    trend[d]=(trend[d]||0)+1;
-
-});
-
-const labels =
-Object.keys(trend).sort().slice(-30);
-
-const values =
-labels.map(x=>trend[x]);
-
-advCharts.trend = new Chart(
-
-document.getElementById("trendChart"),
-
-{
-
-type:"line",
-
-data:{
-
-labels,
-
-datasets:[{
-
-label:"Orders",
-
-data:values,
-
-tension:.4
-
-}]
-
-},
-
-options:{
-
-plugins:{
-legend:{
-labels:{color:"white"}
-}
-},
-
-scales:{
-
-x:{ticks:{color:"white"}},
-
-y:{ticks:{color:"white"}}
-
-}
-
-}
-
-});
-
-renderHeatmap(orders);
 }
 
 function renderHeatmap(orders){
