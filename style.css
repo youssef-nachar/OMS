@@ -4092,24 +4092,8 @@ grid-template-columns:1fr 1fr 1fr;
 
 }
 
-.adv-panel{
-position:relative;
-    height:380px;
-    min-height:380px;
-background:#111827;
-
-border:1px solid #1f2937;
-
-border-radius:18px;
-
-
-
 }
-.adv-panel canvas{
-    width:100% !important;
-    height:100% !important;
-    display:block;
-}
+
 
 .large{
 
@@ -4129,13 +4113,7 @@ color:white;
 
 }
 
-.adv-panel canvas{
 
-width:100% !important;
-
-height:280px !important;
-
-}
 
 #heatmapPlaceholder{
 
@@ -4178,3 +4156,13 @@ background:#1e293b;
 transition:.3s;
 
     }
+
+.adv-panel{
+    position:relative;
+    height:520px;
+}
+
+.adv-panel canvas{
+    width:100% !important;
+    height:100% !important;
+}
