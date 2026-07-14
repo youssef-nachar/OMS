@@ -751,17 +751,22 @@ ${type === "distributed" ? `
         gap:8px;
     ">
 
-        <span style="
-            color:#22c55e;
-            font-size:12px;
-            max-width:180px;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            white-space:nowrap;
-            display:inline-block;
-        ">
-            ${order.comment || "-"}
-        </span>
+     <span
+    onclick="openEditOrder('${order.orderNo}')"
+    style="
+        color:#22c55e;
+        font-size:20px;
+        max-width:180px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+        display:inline-block;
+        cursor:pointer;
+        text-decoration:underline;
+    "
+>
+    ${order.comment || "Add +"}
+</span>
 
         ${order.comment ? `
             <button
