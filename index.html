@@ -1544,6 +1544,216 @@ style="
     </div>
 
 </div>
+
+            <div
+    id="editCommentModal"
+    class="hidden"
+    style="
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.6);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        z-index:9999;
+    "
+>
+
+<div
+    style="
+        width:620px;
+        max-width:95%;
+        background:linear-gradient(
+            145deg,
+            #ffffff,
+            #f8fafc
+        );
+        border-radius:20px;
+        padding:30px;
+        box-shadow:
+            0 25px 70px rgba(0,0,0,.25),
+            inset 0 1px 0 rgba(255,255,255,.8);
+        border:1px solid #e2e8f0;
+    "
+>
+
+    <h2
+        style="
+            margin:0 0 22px;
+            color:#0f172a;
+            font-size:22px;
+            font-weight:800;
+            display:flex;
+            align-items:center;
+            gap:10px;
+        "
+    >
+        ✏️ Edit Comment
+    </h2>
+
+
+    <div
+        id="editOrderInfo"
+        style="
+            background:#eff6ff;
+            color:#2563eb;
+            padding:12px 15px;
+            border-radius:12px;
+            margin-bottom:22px;
+            font-weight:700;
+            font-size:14px;
+            border-left:4px solid #2563eb;
+        "
+    ></div>
+
+
+    <label
+        style="
+            display:block;
+            margin-bottom:8px;
+            color:#334155;
+            font-weight:700;
+            font-size:14px;
+        "
+    >
+        ⚠️ Fault By
+    </label>
+
+
+    <input
+        id="editFaultBy"
+        type="text"
+        placeholder="Enter fault owner..."
+        style="
+            width:100%;
+            padding:13px 15px;
+            background:white;
+            color:#0f172a;
+            border:1px solid #cbd5e1;
+            border-radius:12px;
+            outline:none;
+            font-size:14px;
+            margin-bottom:20px;
+            box-sizing:border-box;
+            transition:.2s;
+        "
+        onfocus="
+            this.style.borderColor='#2563eb';
+            this.style.boxShadow='0 0 0 3px rgba(37,99,235,.15)';
+        "
+        onblur="
+            this.style.borderColor='#cbd5e1';
+            this.style.boxShadow='none';
+        "
+    >
+
+
+    <label
+        style="
+            display:block;
+            margin-bottom:8px;
+            color:#334155;
+            font-weight:700;
+            font-size:14px;
+        "
+    >
+        📝 Comment
+    </label>
+
+
+    <textarea
+        id="editCommentText"
+        rows="8"
+        placeholder="Write your comment..."
+        style="
+            width:100%;
+            padding:15px;
+            background:white;
+            color:#0f172a;
+            border:1px solid #cbd5e1;
+            border-radius:12px;
+            resize:vertical;
+            outline:none;
+            font-size:14px;
+            line-height:1.6;
+            box-sizing:border-box;
+            transition:.2s;
+        "
+        onfocus="
+            this.style.borderColor='#2563eb';
+            this.style.boxShadow='0 0 0 3px rgba(37,99,235,.15)';
+        "
+        onblur="
+            this.style.borderColor='#cbd5e1';
+            this.style.boxShadow='none';
+        "
+    ></textarea>
+
+
+    <div
+        style="
+            margin-top:25px;
+            display:flex;
+            justify-content:flex-end;
+            gap:12px;
+        "
+    >
+
+        <button
+            onclick="closeEditCommentModal()"
+            style="
+                padding:11px 22px;
+                border:none;
+                border-radius:12px;
+                background:#64748b;
+                color:white;
+                font-weight:700;
+                cursor:pointer;
+                transition:.2s;
+            "
+            onmouseover="
+                this.style.background='#475569'
+            "
+            onmouseout="
+                this.style.background='#64748b'
+            "
+        >
+            ✖ Cancel
+        </button>
+
+
+        <button
+            onclick="saveEditedComment()"
+            style="
+                padding:11px 24px;
+                border:none;
+                border-radius:12px;
+                background:linear-gradient(
+                    135deg,
+                    #2563eb,
+                    #1d4ed8
+                );
+                color:white;
+                font-weight:800;
+                cursor:pointer;
+                box-shadow:
+                    0 8px 20px rgba(37,99,235,.35);
+                transition:.2s;
+            "
+            onmouseover="
+                this.style.transform='translateY(-2px)'
+            "
+            onmouseout="
+                this.style.transform='translateY(0)'
+            "
+        >
+            💾 Save Changes
+        </button>
+
+    </div>
+
+</div>
+</div>
         <div id="settingsTab" class="hidden"></div>
             <div id="newOrderTab" class="card hidden" style="margin-top:30px">
 
