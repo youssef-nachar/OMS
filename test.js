@@ -2863,6 +2863,21 @@ ${repliesHtml}
     + Add
 </button>
 <button
+    onclick="editComment('${id}')"
+    style="
+        margin-top:10px;
+        margin-left:8px;
+        background:#2563eb;
+        color:white;
+        border:none;
+        padding:6px 12px;
+        border-radius:8px;
+        cursor:pointer;
+    "
+>
+    ✏️ Edit
+</button>
+<button
     onclick="deleteComment('${id}')"
     style="
         margin-top:10px;
@@ -2905,6 +2920,47 @@ ref(
 
     loadOrderComments();
 };
+window.editComment = async function(commentId){
+
+    const snap = await get(
+        ref(db, `orderCommentsTab/${commentId}`)
+    );
+
+    if(!snap.exists()){
+        alert("Comment not found");
+        return;
+    }
+
+    const row = snap.val();
+
+    // حفظ الـ ID للتعديل لاحقاً
+    currentEditCommentId = commentId;
+
+
+    document.getElementById("editOrderInfo").innerHTML =
+        `Order: ${row.orderNo}`;
+
+
+    document.getElementById("editCommentText").value =
+        row.comment || "";
+
+
+    document.getElementById("editFaultBy").value =
+        row.faultBy || "";
+
+
+    document
+        .getElementById("editCommentModal")
+        .classList.remove("hidden");
+};
+window.closeEditCommentModal = function(){
+
+    document
+        .getElementById("editCommentModal")
+        .classList.add("hidden");
+
+    currentEditCommentId = null;
+};
 window.addCommentReply = function(commentId, orderNo){
 
     currentReplyCommentId = commentId;
@@ -2921,6 +2977,47 @@ window.addCommentReply = function(commentId, orderNo){
     document.getElementById(
         "replyModal"
     ).classList.remove("hidden");
+};
+window.saveEditedComment = async function(){
+
+    const comment =
+        document.getElementById("editCommentText")
+        .value.trim();
+
+
+    const faultBy =
+        document.getElementById("editFaultBy")
+        .value.trim();
+
+
+    if(!comment){
+        alert("Comment cannot be empty");
+        return;
+    }
+
+
+    await update(
+        ref(
+            db,
+            `orderCommentsTab/${currentEditCommentId}`
+        ),
+        {
+            comment,
+            faultBy,
+
+            editedBy:
+                localStorage.getItem("currentWarehouse")
+                || "Manager",
+
+            editedAt:
+                new Date().toLocaleString()
+        }
+    );
+
+
+    closeEditCommentModal();
+
+    loadOrderComments();
 };
 window.closeReplyModal = function(){
 
@@ -2975,6 +3072,145 @@ ref(
     `orderCommentsTab/${commentId}`
 )
     );
+
+    loadOrderComments();
+};
+window.importCommentsExcel = async function () {
+
+    const file = document.getElementById("commentsExcelFile").files[0];
+
+    if (!file) {
+        alert("Please select Excel file");
+        return;
+    }
+
+    const buffer = await file.arrayBuffer();
+
+    const workbook = XLSX.read(buffer, {
+        type: "array"
+    });
+
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+        defval: ""
+    });
+
+    if (!rows.length) {
+        alert("No data found");
+        return;
+    }
+
+    const getValue = (row, names) => {
+        for (const name of names) {
+            const key = Object.keys(row).find(
+                k => k.trim().toLowerCase() === name.trim().toLowerCase()
+            );
+
+            if (key && row[key] !== undefined && row[key] !== "") {
+                return row[key];
+            }
+        }
+        return "";
+    };
+
+    let imported = 0;
+
+    for (const row of rows) {
+
+        const orderNo = String(
+            getValue(row, [
+                "Sales Order#",
+                "Sales Order",
+                "Order No",
+                "Order"
+            ])
+        ).trim().toUpperCase();
+
+        if (!orderNo) continue;
+
+        const warehouse = getValue(row, [
+            "Warehouse",
+            "Warehou",
+            "Warehouse "
+        ]) || "Unknown";
+
+        const incident = getValue(row, [
+            "Nature of the incident Shared by LMD"
+        ]);
+
+        const investigation = getValue(row, [
+            "Investigation in detail"
+        ]);
+
+        const finalResult = getValue(row, [
+            "Final Result"
+        ]);
+
+        const fault = getValue(row, [
+            "FAULT BY",
+            "FAULT BY "
+        ]);
+
+        const incidentDate = getValue(row, [
+            "Date of Incident"
+        ]) || new Date().toISOString().slice(0, 10);
+
+        // إنشاء التعليق الرئيسي
+        const commentRef = await push(
+            ref(db, "orderCommentsTab"),
+            {
+                orderNo,
+                by: warehouse,
+                faultBy: fault,
+                createdBy: "System",
+                createdAt: incidentDate,
+                comment: incident
+            }
+        );
+
+        // إضافة Investigation كـ Reply
+        if (investigation) {
+            await push(
+                ref(db, `orderCommentsTab/${commentRef.key}/replies`),
+                {
+                    comment: investigation,
+                    by: "System",
+                    createdAt: incidentDate
+                }
+            );
+        }
+
+        // إضافة Final Result كـ Reply
+        if (finalResult) {
+            await push(
+                ref(db, `orderCommentsTab/${commentRef.key}/replies`),
+                {
+                    comment: finalResult,
+                    by: "System",
+                    createdAt: incidentDate
+                }
+            );
+        }
+
+        imported++;
+    }
+
+    alert(`Imported successfully: ${imported} records`);
+
+    loadOrderComments();
+};
+window.deleteAllComments = async function () {
+
+    const confirmed = confirm(
+        "Are you sure you want to delete ALL comments?"
+    );
+
+    if (!confirmed) return;
+
+    await remove(ref(db, "orderCommentsTab"));
+
+    alert("All comments deleted successfully.");
 
     loadOrderComments();
 };
