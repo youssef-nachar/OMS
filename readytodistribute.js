@@ -79,7 +79,10 @@ return fetch(distributionSheetURL + "&t=" + Date.now(), {
         const ORDER_COL = headers.indexOf("request number");  
         const DATE_COL = headers.indexOf("request registration date time");  
         const COMPANY_COL = headers.findIndex(h => h.includes("company"));  
-
+const TIME_COL =
+    headers.findIndex(h =>
+        h.trim().toLowerCase() === "time"
+    );
         if (ORDER_COL === -1 || DATE_COL === -1) {  
 
             console.warn("❌ Distribution columns not found");  
@@ -99,20 +102,58 @@ return fetch(distributionSheetURL + "&t=" + Date.now(), {
                 COMPANY_COL !== -1  
                     ? r[COMPANY_COL]?.trim()  
                     : "";  
-
+const timeValue =
+    TIME_COL !== -1
+        ? r[TIME_COL]
+        : "";
+        console.log("TIME =", timeValue);
             if (!orderNo || !rawDate) return;  
 
             const formattedDate =  
                 formatDateForInput(rawDate);  
 
             if (!formattedDate) return;  
+let batchName = "-";
 
-            newMap[orderNo] = {  
+if (timeValue) {
 
-                date: formattedDate,  
+    const [hour, minute] =
+        timeValue.toString().trim().split(":").map(Number);
 
-                company: company || "LMD"  
-            };  
+    const totalMinutes = hour * 60 + minute;
+
+    if ((company || "").trim().toLowerCase() === "wakilni") {
+
+        batchName = "Wakilni Batch";
+
+    } else if (totalMinutes <= 600) {          // 10:00
+
+        batchName = "Batch 1";
+
+    } else if (totalMinutes <= 690) {          // 11:30
+
+        batchName = "Batch 2";
+
+    } else if (totalMinutes <= 780) {          // 13:00
+
+        batchName = "Batch 3";
+
+    } else if (totalMinutes <= 930) {          // 15:30
+
+        batchName = "Batch 4";
+
+    } else {
+
+        batchName = "Batch 4";
+    }
+
+}
+            newMap[orderNo] = {
+    date: formattedDate,
+    company: company || "LMD",
+    time: timeValue,
+    batch: batchName
+};
         });  
 
         // ✅ دمج الطلبات الموزعة يدوياً من Firebase  
@@ -184,7 +225,38 @@ return fetch(distributionSheetURL + "&t=" + Date.now(), {
     });
 
 }
+function getBatchName(timeValue, company) {
 
+    if ((company || "").toLowerCase() === "wakilni") {
+        return "Wakilni Batch";
+    }
+
+    if (!timeValue) return "-";
+
+    const date = new Date(timeValue);
+
+    const minutes =
+        date.getHours() * 60 +
+        date.getMinutes();
+
+    if (minutes <= 600) { // <= 10:00
+        return "Batch 1";
+    }
+
+    if (minutes <= 690) { // 11:30
+        return "Batch 2";
+    }
+
+    if (minutes <= 780) { // 13:00
+        return "Batch 3";
+    }
+
+    if (minutes <= 930) { // 15:30
+        return "Batch 4";
+    }
+
+    return "Batch 4";
+}
 function renderSingleBatch(title, orders) {
 
     return `
