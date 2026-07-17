@@ -666,11 +666,11 @@ const orderList = document.getElementById("orderList");
         });  
         return `  
     <table>  
-      <tr>
+    <tr>
 <th>Order #</th>
 <th>Warehouses</th>
 <th>Status</th>
-${type === "distributed" ? "<th>Company</th>" : ""}
+${type === "distributed" ? "<th>Company</th><th>Batch</th>" : ""}
 <th>Comment</th>
 </tr>
             ${orders.map(order => {  let statusText =  
@@ -684,6 +684,10 @@ const company =
     distributedOrdersMap[order.orderNo]?.company ||
     order.company ||
     "-";
+    const batch = getBatchName(
+    distributedOrdersMap[order.orderNo]?.time,
+    company
+);
 return `  
             <tr>  
                 <td>${order.orderNo}</td>  
@@ -741,6 +745,7 @@ ${type === "distributed" ? `
 <td>
     ${company}
 </td>
+<td>${distributedOrdersMap[order.orderNo]?.batch || "-"}</td>
 ` : ""}
 
 <td style="padding:8px">
