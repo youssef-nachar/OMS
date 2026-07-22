@@ -4166,3 +4166,468 @@ transition:.3s;
     width:100% !important;
     height:100% !important;
 }
+.comments-form{
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+}
+
+/*==========================
+ GRID
+===========================*/
+
+.comments-grid{
+
+    display:grid;
+
+    grid-template-columns:
+        1.1fr
+        1fr
+        1fr
+        1fr;
+
+    gap:18px;
+
+    align-items:end;
+
+}
+
+/*==========================
+ LABEL
+===========================*/
+
+.field-box label{
+
+    display:block;
+
+    margin-bottom:8px;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    color:#cbd5e1;
+
+    letter-spacing:.3px;
+
+}
+
+/*==========================
+ INPUT GROUP
+===========================*/
+
+.input-group{
+
+    position:relative;
+
+}
+
+.input-group input{
+
+    width:100%;
+
+    height:48px;
+
+    padding-left:42px;
+
+    border:1px solid #2b3444;
+
+    border-radius:12px;
+
+    background:#1c2331;
+
+    color:#fff;
+
+    font-size:14px;
+
+    transition:.25s;
+
+}
+
+.input-group i{
+
+    position:absolute;
+
+    left:15px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#94a3b8;
+
+}
+
+.input-group input:focus{
+
+    outline:none;
+
+    border-color:#3b82f6;
+
+    box-shadow:0 0 0 4px rgba(59,130,246,.15);
+
+}
+
+/*==========================
+ ICON INPUTS
+===========================*/
+
+.field-icon{
+
+    position:relative;
+
+}
+
+.field-icon i{
+
+    position:absolute;
+
+    left:14px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#94a3b8;
+
+    z-index:2;
+
+}
+
+.field-icon input,
+.field-icon select{
+
+    width:100%;
+
+    height:48px;
+
+    padding-left:42px;
+
+    border:1px solid #2b3444;
+
+    border-radius:12px;
+
+    background:#1c2331;
+
+    color:#fff;
+
+    font-size:14px;
+
+    transition:.25s;
+
+    appearance:none;
+
+}
+
+.field-icon input:focus,
+.field-icon select:focus{
+
+    outline:none;
+
+    border-color:#3b82f6;
+
+    box-shadow:0 0 0 4px rgba(59,130,246,.15);
+
+}
+
+/*==========================
+ TEXTAREA
+===========================*/
+
+#orderCommentText{
+
+    width:100%;
+
+    min-height:150px;
+
+    resize:vertical;
+
+    border:1px solid #2b3444;
+
+    border-radius:14px;
+
+    background:#1c2331;
+
+    color:#fff;
+
+    padding:16px;
+
+    font-size:15px;
+
+    transition:.25s;
+
+}
+
+#orderCommentText:focus{
+
+    outline:none;
+
+    border-color:#3b82f6;
+
+    box-shadow:0 0 0 4px rgba(59,130,246,.15);
+
+}
+
+/*==========================
+ BUTTON
+===========================*/
+
+.save-comment-btn{
+
+    align-self:flex-end;
+
+    height:48px;
+
+    padding:0 26px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:linear-gradient(135deg,#2563eb,#1d4ed8);
+
+    color:#fff;
+
+    font-weight:700;
+
+    font-size:14px;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.save-comment-btn:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:0 10px 24px rgba(37,99,235,.35);
+
+}
+
+/*==========================
+ RESPONSIVE
+===========================*/
+
+@media(max-width:1200px){
+
+.comments-grid{
+
+grid-template-columns:repeat(2,1fr);
+
+}
+
+}
+
+@media(max-width:700px){
+
+.comments-grid{
+
+grid-template-columns:1fr;
+
+}
+
+.save-comment-btn{
+
+width:100%;
+
+}
+
+}
+
+/*==========================
+History Toolbar
+==========================*/
+
+.history-toolbar{
+
+    display:flex;
+
+    gap:14px;
+
+    align-items:center;
+
+    margin:20px 0;
+
+    flex-wrap:wrap;
+
+}
+
+/*==========================
+Search
+==========================*/
+
+.history-search{
+
+    flex:1;
+
+    min-width:280px;
+
+    position:relative;
+
+}
+
+.history-search i{
+
+    position:absolute;
+
+    left:15px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#94a3b8;
+
+}
+
+.history-search input{
+
+    width:100%;
+
+    height:48px;
+
+    padding-left:44px;
+
+    border:1px solid #2b3444;
+
+    border-radius:12px;
+
+    background:#1c2331;
+
+    color:white;
+
+    transition:.25s;
+
+}
+
+.history-search input:focus{
+
+    outline:none;
+
+    border-color:#3b82f6;
+
+    box-shadow:0 0 0 4px rgba(59,130,246,.15);
+
+}
+
+/*==========================
+Filters
+==========================*/
+
+.history-filter{
+
+    width:220px;
+
+    position:relative;
+
+}
+
+.history-filter i{
+
+    position:absolute;
+
+    left:14px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#94a3b8;
+
+}
+
+.history-filter select,
+.history-filter input{
+
+    width:100%;
+
+    height:48px;
+
+    padding-left:42px;
+
+    border:1px solid #2b3444;
+
+    border-radius:12px;
+
+    background:#1c2331;
+
+    color:white;
+
+    transition:.25s;
+
+}
+
+.history-filter select:focus,
+.history-filter input:focus{
+
+    outline:none;
+
+    border-color:#3b82f6;
+
+    box-shadow:0 0 0 4px rgba(59,130,246,.15);
+
+}
+
+/*==========================
+Reset Button
+==========================*/
+
+.history-reset{
+
+    height:48px;
+
+    padding:0 22px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#334155;
+
+    color:white;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.history-reset:hover{
+
+    background:#475569;
+
+    transform:translateY(-2px);
+
+}
+
+/*==========================
+Responsive
+==========================*/
+
+@media(max-width:900px){
+
+.history-search{
+
+flex:100%;
+
+}
+
+.history-filter{
+
+flex:1;
+
+min-width:180px;
+
+}
+
+.history-reset{
+
+width:100%;
+
+}
+
+}
