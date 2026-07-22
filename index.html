@@ -996,7 +996,7 @@
             <div>
                 <h2>
                     <i class="fa-solid fa-comments"></i>
-                     Orders Complain
+                    Orders Complain
                 </h2>
 
                 <p>
@@ -1009,171 +1009,63 @@
 
             <div class="comments-form">
 
-                <div class="input-group">
-                    <i class="fa-solid fa-hashtag"></i>
-                    <input
-                        type="text"
-                        id="commentOrderNumber"
-                        placeholder="#M12345"
-                    >
-                </div>
+                <!-- Row -->
+                <div class="comments-grid">
 
-          
+                    <div class="input-group">
+                        <i class="fa-solid fa-hashtag"></i>
+                        <input
+                            type="text"
+                            id="commentOrderNumber"
+                            placeholder="#M12345">
+                    </div>
+
+                    <div class="field-box">
+
+                        <label>Fault By</label>
+
+                        <div class="field-icon">
+                            <i class="fa-solid fa-user"></i>
+
+                            <input
+                                type="text"
+                                id="faultBy"
+                                placeholder="Enter fault by...">
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="field-box">
+
+                        <label>Complaint Date</label>
+
+                        <div class="field-icon">
+
+                            <i class="fa-solid fa-calendar-days"></i>
+
+                            <input
+                                type="date"
+                                id="complainDate">
+
+                        </div>
+
+                    </div>
+
+                </div>
 
                 <textarea
                     id="orderCommentText"
-                    placeholder="Write a comment..."
-                ></textarea>
-<div style="
-    background:#111f;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:18px;
-    margin-bottom:18px;
-">
+                    placeholder="Write a comment..."></textarea>
 
-    <label style="
-        display:block;
-        margin-bottom:12px;
-        font-size:14px;
-        font-weight:700;
-        color:#fffff;
-    ">
-        Fault By
-    </label>
-
-    <div style="
-        display:flex;
-        align-items:center;
-        gap:14px;
-        flex-wrap:wrap;
-    ">
-
-        <div style="
-            flex:1;
-            min-width:220px;
-            position:relative;
-        ">
-
-            <span style="
-                position:absolute;
-                left:12px;
-                top:50%;
-                transform:translateY(-50%);
-                color:#94a3b8;
-                font-size:15px;
-            ">
-                👤
-            </span>
-
-            <input
-                type="text"
-                id="faultBy"
-                placeholder="Enter fault by..."
-                style="
-                    width:100%;
-                    padding:11px 14px 11px 40px;
-                    border:1px solid #d1d5db;
-                    border-radius:10px;
-                    font-size:14px;
-                    outline:none;
-                    transition:.2s;
-                    box-sizing:border-box;
-                "
-            >
-
-        </div>
-
-        <div style="
-            width:220px;
-            position:relative;
-        ">
-
-            <span style="
-                position:absolute;
-                left:12px;
-                top:50%;
-                transform:translateY(-50%);
-                color:#94a3b8;
-                pointer-events:none;
-            ">
-                🔍
-            </span>
-
-            <select
-                id="faultByFilter"
-                onchange="loadOrderComments()"
-                style="
-                    width:100%;
-                    padding:11px 14px 11px 38px;
-                    border:1px solid #d1d5db;
-                    border-radius:10px;
-                    font-size:14px;
-                    background:white;
-                    cursor:pointer;
-                    outline:none;
-                    box-sizing:border-box;
-                "
-            >
-                <option value="">All Fault By</option>
-            </select>
-
-        </div>
-
-    </div>
-
-</div>
-<div style="
-    min-width:220px;
-    position:relative;
-">
-
-    <label style="
-        display:block;
-        margin-bottom:8px;
-        font-size:14px;
-        font-weight:700;
-        color:#ffffff;
-    ">
-        Complaint Date
-    </label>
-
-    <span style="
-        position:absolute;
-        left:12px;
-        top:42px;
-        color:#94a3b8;
-        pointer-events:none;
-    ">
-        📅
-    </span>
-
-    <input
-        type="date"
-        id="complainDate"
-        style="
-            width:100%;
-            padding:11px 14px 11px 40px;
-            border:1px solid #d1d5db;
-            border-radius:10px;
-            font-size:14px;
-            background:#fff;
-            color:#1e293b;
-            outline:none;
-            box-sizing:border-box;
-            transition:all .2s ease;
-        "
-        onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,.15)'"
-        onblur="this.style.borderColor='#d1d5db';this.style.boxShadow='none'"
-    >
-
-</div>
                 <button
                     class="save-comment-btn"
-                    onclick="saveOrderComment()"
-                >
+                    onclick="saveOrderComment()">
+
                     <i class="fa-solid fa-paper-plane"></i>
                     Save Comment
+
                 </button>
 
             </div>
@@ -1187,20 +1079,70 @@
                 Comments History
             </div>
 
-            <input
-                type="text"
-                id="commentSearch"
-                placeholder="Search Order Number..."
-                oninput="loadOrderComments()"
-            >
+<div class="history-toolbar">
 
-            <div id="orderCommentsList"></div>
+    <div class="history-search">
+
+        <i class="fa-solid fa-magnifying-glass"></i>
+
+        <input
+            type="text"
+            id="commentSearch"
+            placeholder="Search Order Number..."
+            oninput="loadOrderComments()">
+
+    </div>
+
+    <div class="history-filter">
+
+        <i class="fa-solid fa-user"></i>
+
+            <select
+                                id="faultByFilter"
+                                onchange="loadOrderComments()">
+
+                                <option value="">All Fault By</option>
+
+                            </select>
+    </div>
+
+    <div class="history-filter">
+
+        <i class="fa-solid fa-calendar-days"></i>
+
+        <input
+            type="date"
+            id="commentDateFilter"
+            onchange="loadOrderComments()">
+
+    </div>
+
+    <button
+        class="history-reset"
+        onclick="
+        document.getElementById('commentSearch').value='';
+        document.getElementById('faultByFilter').value='';
+        document.getElementById('commentDateFilter').value='';
+        loadOrderComments();
+        ">
+
+        <i class="fa-solid fa-rotate-left"></i>
+
+        Reset
+
+    </button>
+
+</div>
+
+<div id="orderCommentsList"></div>
 
         </div>
 
     </div>
 
 </div>
+
+                
 
         <div id="readyTab" class="hidden">  </div>
 <div id="commentModal" class="hidden" style="
