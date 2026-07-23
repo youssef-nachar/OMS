@@ -745,7 +745,13 @@ ${type === "distributed" ? `
 <td>
     ${company}
 </td>
-<td>${distributedOrdersMap[order.orderNo]?.batch || "-"}</td>
+<td>
+    ${
+        order.batch
+            ? `${order.batch.type} - ${order.batch.name}`
+            : distributedOrdersMap[order.orderNo]?.batch || "-"
+    }
+</td>
 ` : ""}
 
 <td style="padding:8px">
