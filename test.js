@@ -1701,7 +1701,7 @@ element.textContent = newValue;
 
 // }
 function showReturnTab() {
-    document.getElementById("aboutTab").classList.add("hidden");
+    // document.getElementById("aboutTab").classList.add("hidden");
     document.getElementById("orderCommentsTab")
         .classList.add("hidden");
 document.getElementById("reportsTab")  
@@ -2657,7 +2657,7 @@ function openOrderCommentsTab() {
 
     // إخفاء جميع التابات
     document.querySelectorAll(
-        "#newOrderTab,#returnTab,#reportsTab,#aboutTab,#readyTab,#orderCommentsTab"
+        "#newOrderTab,#returnTab,#reportsTab,#readyTab,#orderCommentsTab"
     ).forEach(tab => tab.classList.add("hidden"));
 
     // إخفاء الداشبورد
@@ -3071,9 +3071,8 @@ window.editComment = async function(commentId){
     currentEditCommentId = commentId;
 
 
-    document.getElementById("editOrderInfo").innerHTML =
-        `Order: ${row.orderNo}`;
-
+document.getElementById("editOrderNumber").value =
+    row.orderNo || "";
 
     document.getElementById("editCommentText").value =
         row.comment || "";
@@ -3117,6 +3116,10 @@ window.addCommentReply = function(commentId, orderNo){
 window.saveEditedComment = async function(){
 const createdAt =
     document.getElementById("editComplainDate").value;
+const orderNo =
+    document.getElementById("editOrderNumber")
+    .value.trim()
+    .toUpperCase();
 
     const comment =
         document.getElementById("editCommentText")
@@ -3133,6 +3136,16 @@ const createdAt =
         return;
     }
 
+const order = allOrders.find(
+    o => o.orderNo.toUpperCase() === orderNo
+);
+
+const by = order
+    ? order.warehouses
+        .filter(w => w.base.toUpperCase() !== "PACKING STATION")
+        .map(w => w.base)
+        .join(", ")
+    : "Unknown";
 
 await update(
     ref(
@@ -3140,8 +3153,10 @@ await update(
         `orderCommentsTab/${currentEditCommentId}`
     ),
     {
+        orderNo,
         comment,
         faultBy,
+        by,
         createdAt,
 
         editedBy:
@@ -3252,7 +3267,7 @@ function showAdvancedDashboard() {
     document.getElementById("reportsTab")?.classList.add("hidden");
     document.getElementById("readyTab")?.classList.add("hidden");
     document.getElementById("returnTab")?.classList.add("hidden");
-    document.getElementById("aboutTab")?.classList.add("hidden");
+    // document.getElementById("aboutTab")?.classList.add("hidden");
     document.getElementById("settingsTab")?.classList.add("hidden");
 
     // إخفاء الداشبورد الرئيسي
