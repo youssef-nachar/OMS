@@ -1,91 +1,91 @@
-// Disable Right Click
-document.addEventListener("contextmenu", e => e.preventDefault());
+// // Disable Right Click
+// document.addEventListener("contextmenu", e => e.preventDefault());
 
-// Disable common DevTools shortcuts
-document.addEventListener("keydown", function (e) {
+// // Disable common DevTools shortcuts
+// document.addEventListener("keydown", function (e) {
 
-    // F12
-    if (e.key === "F12") {
-        e.preventDefault();
-        return false;
-    }
+//     // F12
+//     if (e.key === "F12") {
+//         e.preventDefault();
+//         return false;
+//     }
 
-    // Ctrl+Shift+I / J / C
-    if (
-        e.ctrlKey &&
-        e.shiftKey &&
-        ["I", "J", "C"].includes(e.key.toUpperCase())
-    ) {
-        e.preventDefault();
-        return false;
-    }
+//     // Ctrl+Shift+I / J / C
+//     if (
+//         e.ctrlKey &&
+//         e.shiftKey &&
+//         ["I", "J", "C"].includes(e.key.toUpperCase())
+//     ) {
+//         e.preventDefault();
+//         return false;
+//     }
 
-    // Ctrl+U
-    if (e.ctrlKey && e.key.toUpperCase() === "U") {
-        e.preventDefault();
-        return false;
-    }
+//     // Ctrl+U
+//     if (e.ctrlKey && e.key.toUpperCase() === "U") {
+//         e.preventDefault();
+//         return false;
+//     }
 
-    // Ctrl+S
-    if (e.ctrlKey && e.key.toUpperCase() === "S") {
-        e.preventDefault();
-        return false;
-    }
+//     // Ctrl+S
+//     if (e.ctrlKey && e.key.toUpperCase() === "S") {
+//         e.preventDefault();
+//         return false;
+//     }
 
-    // Ctrl+Shift+K (Firefox)
-    if (
-        e.ctrlKey &&
-        e.shiftKey &&
-        e.key.toUpperCase() === "K"
-    ) {
-        e.preventDefault();
-        return false;
-    }
-});
+//     // Ctrl+Shift+K (Firefox)
+//     if (
+//         e.ctrlKey &&
+//         e.shiftKey &&
+//         e.key.toUpperCase() === "K"
+//     ) {
+//         e.preventDefault();
+//         return false;
+//     }
+// });
 
-(function () {
+// (function () {
 
-    let opened = false;
+//     let opened = false;
 
-    setInterval(() => {
+//     setInterval(() => {
 
-        const widthThreshold =
-            window.outerWidth - window.innerWidth > 160;
+//         const widthThreshold =
+//             window.outerWidth - window.innerWidth > 160;
 
-        const heightThreshold =
-            window.outerHeight - window.innerHeight > 160;
+//         const heightThreshold =
+//             window.outerHeight - window.innerHeight > 160;
 
-        if (widthThreshold || heightThreshold) {
+//         if (widthThreshold || heightThreshold) {
 
-            if (!opened) {
+//             if (!opened) {
 
-                opened = true;
+//                 opened = true;
 
-                document.body.innerHTML = `
-                    <div style="
-                        display:flex;
-                        justify-content:center;
-                        align-items:center;
-                        height:100vh;
-                        background:#020617;
-                        color:white;
-                        font-size:28px;
-                        font-family:Arial;
-                        text-align:center;
-                    ">
-                        Security Violation Detected
-                    </div>
-                `;
+//                 document.body.innerHTML = `
+//                     <div style="
+//                         display:flex;
+//                         justify-content:center;
+//                         align-items:center;
+//                         height:100vh;
+//                         background:#020617;
+//                         color:white;
+//                         font-size:28px;
+//                         font-family:Arial;
+//                         text-align:center;
+//                     ">
+//                         Security Violation Detected
+//                     </div>
+//                 `;
 
-            }
+//             }
 
-        }
+//         }
 
-    }, 500);
+//     }, 500);
 
-})();
-document.addEventListener("dragstart", e => e.preventDefault());
-document.addEventListener("selectstart", e => e.preventDefault());
+// })();
+// document.addEventListener("dragstart", e => e.preventDefault());
+// document.addEventListener("selectstart", e => e.preventDefault());
 let showOnlyReceived = false;
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
@@ -2745,6 +2745,7 @@ window.loadOrderComments = async function()
 const faultFilter =
     document.getElementById("faultByFilter")
     ?.value || "";
+    
     const container =
         document.getElementById("orderCommentsList");
 
@@ -3041,6 +3042,8 @@ window.editComment = async function(commentId){
     document.getElementById("editFaultBy").value =
         row.faultBy || "";
 
+document.getElementById("editComplainDate").value =
+    row.createdAt || "";
 
     document
         .getElementById("editCommentModal")
@@ -3072,6 +3075,8 @@ window.addCommentReply = function(commentId, orderNo){
     ).classList.remove("hidden");
 };
 window.saveEditedComment = async function(){
+const createdAt =
+    document.getElementById("editComplainDate").value;
 
     const comment =
         document.getElementById("editCommentText")
@@ -3089,23 +3094,24 @@ window.saveEditedComment = async function(){
     }
 
 
-    await update(
-        ref(
-            db,
-            `orderCommentsTab/${currentEditCommentId}`
-        ),
-        {
-            comment,
-            faultBy,
+await update(
+    ref(
+        db,
+        `orderCommentsTab/${currentEditCommentId}`
+    ),
+    {
+        comment,
+        faultBy,
+        createdAt,
 
-            editedBy:
-                localStorage.getItem("currentWarehouse")
-                || "Manager",
+        editedBy:
+            localStorage.getItem("currentWarehouse")
+            || "Manager",
 
-            editedAt:
-                new Date().toLocaleString()
-        }
-    );
+        editedAt:
+            new Date().toLocaleString()
+    }
+);
 
 
     closeEditCommentModal();
@@ -3572,25 +3578,28 @@ function drawAdvancedCharts(orders) {
 
         const trend = {};
 
-        orders.forEach(order => {
+orders
+    .filter(order => order.status === "completed") // In-Packing
+    .forEach(order => {
 
-            const dateValue =
-                order.created_at ||
-                order.date ||
-                order.createdDate ||
-                order.timestamp;
+        const dateValue =
+            order.created_at ||
+            order.date ||
+            order.createdDate ||
+            order.timestamp;
 
-            if (!dateValue) return;
+        if (!dateValue) return;
 
-            const d = new Date(dateValue);
+        const d = new Date(dateValue);
 
-            if (isNaN(d)) return;
+        if (isNaN(d)) return;
 
-            const hour = d.getHours().toString().padStart(2, "0") + ":00";
+        const hour = d.getHours().toString().padStart(2, "0") + ":00";
 
-            trend[hour] = (trend[hour] || 0) + 1;
+        trend[hour] = (trend[hour] || 0) + 1;
 
-        });
+    });
+
 
         // ترتيب الساعات من 00 إلى 23
         const labels = [];
