@@ -1,3 +1,91 @@
+// Disable Right Click
+document.addEventListener("contextmenu", e => e.preventDefault());
+
+// Disable common DevTools shortcuts
+document.addEventListener("keydown", function (e) {
+
+    // F12
+    if (e.key === "F12") {
+        e.preventDefault();
+        return false;
+    }
+
+    // Ctrl+Shift+I / J / C
+    if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        ["I", "J", "C"].includes(e.key.toUpperCase())
+    ) {
+        e.preventDefault();
+        return false;
+    }
+
+    // Ctrl+U
+    if (e.ctrlKey && e.key.toUpperCase() === "U") {
+        e.preventDefault();
+        return false;
+    }
+
+    // Ctrl+S
+    if (e.ctrlKey && e.key.toUpperCase() === "S") {
+        e.preventDefault();
+        return false;
+    }
+
+    // Ctrl+Shift+K (Firefox)
+    if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        e.key.toUpperCase() === "K"
+    ) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+(function () {
+
+    let opened = false;
+
+    setInterval(() => {
+
+        const widthThreshold =
+            window.outerWidth - window.innerWidth > 160;
+
+        const heightThreshold =
+            window.outerHeight - window.innerHeight > 160;
+
+        if (widthThreshold || heightThreshold) {
+
+            if (!opened) {
+
+                opened = true;
+
+                document.body.innerHTML = `
+                    <div style="
+                        display:flex;
+                        justify-content:center;
+                        align-items:center;
+                        height:100vh;
+                        background:#020617;
+                        color:white;
+                        font-size:28px;
+                        font-family:Arial;
+                        text-align:center;
+                    ">
+                        Security Violation Detected
+                    </div>
+                `;
+
+            }
+
+        }
+
+    }, 500);
+
+})();
+document.addEventListener("dragstart", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
 let showOnlyReceived = false;
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
@@ -745,13 +833,7 @@ ${type === "distributed" ? `
 <td>
     ${company}
 </td>
-<td>
-    ${
-        order.batch
-            ? `${order.batch.type} - ${order.batch.name}`
-            : distributedOrdersMap[order.orderNo]?.batch || "-"
-    }
-</td>
+<td>${distributedOrdersMap[order.orderNo]?.batch || "-"}</td>
 ` : ""}
 
 <td style="padding:8px">
@@ -3151,7 +3233,7 @@ function loadAdvancedDashboard() {
 
     container.innerHTML = `
 
-      <div class="adv-row"
+<div class="adv-row"
 style="
 display:grid;
 grid-template-columns:1fr 1fr;
@@ -3169,15 +3251,19 @@ gap:20px;
     <!-- Order Trend -->
     <div class="adv-panel" style="height:500px;">
         <div class="panel-title">
-            Order Trend
+            Daily Orders
         </div>
         <canvas id="orderTrendChart"></canvas>
+    </div>
+
+    <!-- Divider -->
+    <div class="section-divider" style="grid-column:1 / -1;">
     </div>
 
     <!-- Warehouse -->
     <div class="adv-panel" style="height:520px;">
         <div class="panel-title">
-            Warehouse Performance
+            Warehouse Performance (SOD)
         </div>
         <canvas id="warehousePerformanceChart"></canvas>
     </div>
@@ -3193,7 +3279,7 @@ gap:20px;
         ">
 
             <div class="panel-title">
-                Orders By Day
+                Orders By Date
             </div>
 
             <div style="display:flex;gap:10px;">
@@ -3214,22 +3300,31 @@ gap:20px;
 
                 </select>
 
-                <select id="quarterFilter"
-                        onchange="refreshAdvancedDashboard()"
-                        style="
-                        background:#1f2937;
-                        color:white;
-                        border:1px solid #374151;
-                        padding:6px 12px;
-                        border-radius:6px;
-                        ">
+<select id="monthFilter"
+        onchange="refreshAdvancedDashboard()"
+        style="
+        background:#1f2937;
+        color:white;
+        border:1px solid #374151;
+        padding:6px 12px;
+        border-radius:6px;
+        ">
 
-                    <option value="1">Q1</option>
-                    <option value="2">Q2</option>
-                    <option value="3">Q3</option>
-                    <option value="4">Q4</option>
+    <option value="0">January</option>
+    <option value="1">February</option>
+    <option value="2">March</option>
+    <option value="3">April</option>
+    <option value="4">May</option>
+    <option value="5">June</option>
+    <option value="6">July</option>
+    <option value="7">August</option>
+    <option value="8">September</option>
+    <option value="9">October</option>
+    <option value="10">November</option>
+    <option value="11">December</option>
 
-                </select>
+</select>
+
 
             </div>
 
@@ -3246,6 +3341,7 @@ gap:20px;
         refreshAdvancedDashboard();
     }, 100);
 }
+
 function refreshAdvancedDashboard() {
 
     const orders = applyFilters();
@@ -3892,20 +3988,27 @@ const monthCanvas =
 
 if (monthCanvas) {
 
-    const quarter =
-        Number(document.getElementById("quarterFilter")?.value || 1);
 
     const selectedYear =
         Number(document.getElementById("yearFilter")?.value || new Date().getFullYear());
 
-    const quarterMonths = {
+const selectedMonth =
+    Number(document.getElementById("monthFilter")?.value || new Date().getMonth());
 
-        1: [0, 1, 2],      // Jan-Mar
-        2: [3, 4, 5],      // Apr-Jun
-        3: [6, 7, 8],      // Jul-Sep
-        4: [9, 10, 11]     // Oct-Dec
-
-    };
+const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+];
 
     const days = {};
 
@@ -3928,8 +4031,8 @@ if (monthCanvas) {
             return;
 
         // فلترة الربع
-        if (!quarterMonths[quarter].includes(d.getMonth()))
-            return;
+if (d.getMonth() !== selectedMonth)
+    return;
 
         const day = d.getDate();
 
@@ -3958,7 +4061,7 @@ if (monthCanvas) {
 
             datasets: [{
 
-                label: `Orders (${selectedYear} - Q${quarter})`,
+label: `Orders (${monthNames[selectedMonth]} ${selectedYear})`,
 
                 data: values,
 
@@ -4032,7 +4135,7 @@ if (monthCanvas) {
 
                     display: true,
 
-                    text: `Orders By Day - Q${quarter} (${selectedYear})`,
+text: `Orders By Day - ${monthNames[selectedMonth]} (${selectedYear})`,
 
                     color: "#fff",
 
