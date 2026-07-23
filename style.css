@@ -3700,9 +3700,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover{
     color:white;
     line-height:1.6;
 }
-#commentSearch{
-    margin-bottom:20px ;
-}
+
+
 .premium-modal {
     position: fixed;
     inset: 0;
@@ -4599,9 +4598,9 @@ Filters
 ==========================*/
 
 .history-filter{
-
+    /* margin-left: 600px; */
+    margin-top: 10px;
     width:220px;
-
     position:relative;
 
 }
@@ -4712,4 +4711,7 @@ width:100%;
 
 }
 
+}
+#commentSearch{
+    width:1000px
 }
