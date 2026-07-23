@@ -1,91 +1,91 @@
-// // Disable Right Click
-// document.addEventListener("contextmenu", e => e.preventDefault());
+// Disable Right Click
+document.addEventListener("contextmenu", e => e.preventDefault());
 
-// // Disable common DevTools shortcuts
-// document.addEventListener("keydown", function (e) {
+// Disable common DevTools shortcuts
+document.addEventListener("keydown", function (e) {
 
-//     // F12
-//     if (e.key === "F12") {
-//         e.preventDefault();
-//         return false;
-//     }
+    // F12
+    if (e.key === "F12") {
+        e.preventDefault();
+        return false;
+    }
 
-//     // Ctrl+Shift+I / J / C
-//     if (
-//         e.ctrlKey &&
-//         e.shiftKey &&
-//         ["I", "J", "C"].includes(e.key.toUpperCase())
-//     ) {
-//         e.preventDefault();
-//         return false;
-//     }
+    // Ctrl+Shift+I / J / C
+    if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        ["I", "J", "C"].includes(e.key.toUpperCase())
+    ) {
+        e.preventDefault();
+        return false;
+    }
 
-//     // Ctrl+U
-//     if (e.ctrlKey && e.key.toUpperCase() === "U") {
-//         e.preventDefault();
-//         return false;
-//     }
+    // Ctrl+U
+    if (e.ctrlKey && e.key.toUpperCase() === "U") {
+        e.preventDefault();
+        return false;
+    }
 
-//     // Ctrl+S
-//     if (e.ctrlKey && e.key.toUpperCase() === "S") {
-//         e.preventDefault();
-//         return false;
-//     }
+    // Ctrl+S
+    if (e.ctrlKey && e.key.toUpperCase() === "S") {
+        e.preventDefault();
+        return false;
+    }
 
-//     // Ctrl+Shift+K (Firefox)
-//     if (
-//         e.ctrlKey &&
-//         e.shiftKey &&
-//         e.key.toUpperCase() === "K"
-//     ) {
-//         e.preventDefault();
-//         return false;
-//     }
-// });
+    // Ctrl+Shift+K (Firefox)
+    if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        e.key.toUpperCase() === "K"
+    ) {
+        e.preventDefault();
+        return false;
+    }
+});
 
-// (function () {
+(function () {
 
-//     let opened = false;
+    let opened = false;
 
-//     setInterval(() => {
+    setInterval(() => {
 
-//         const widthThreshold =
-//             window.outerWidth - window.innerWidth > 160;
+        const widthThreshold =
+            window.outerWidth - window.innerWidth > 160;
 
-//         const heightThreshold =
-//             window.outerHeight - window.innerHeight > 160;
+        const heightThreshold =
+            window.outerHeight - window.innerHeight > 160;
 
-//         if (widthThreshold || heightThreshold) {
+        if (widthThreshold || heightThreshold) {
 
-//             if (!opened) {
+            if (!opened) {
 
-//                 opened = true;
+                opened = true;
 
-//                 document.body.innerHTML = `
-//                     <div style="
-//                         display:flex;
-//                         justify-content:center;
-//                         align-items:center;
-//                         height:100vh;
-//                         background:#020617;
-//                         color:white;
-//                         font-size:28px;
-//                         font-family:Arial;
-//                         text-align:center;
-//                     ">
-//                         Security Violation Detected
-//                     </div>
-//                 `;
+                document.body.innerHTML = `
+                    <div style="
+                        display:flex;
+                        justify-content:center;
+                        align-items:center;
+                        height:100vh;
+                        background:#020617;
+                        color:white;
+                        font-size:28px;
+                        font-family:Arial;
+                        text-align:center;
+                    ">
+                        Security Violation Detected
+                    </div>
+                `;
 
-//             }
+            }
 
-//         }
+        }
 
-//     }, 500);
+    }, 500);
 
-// })();
-// document.addEventListener("dragstart", e => e.preventDefault());
-// document.addEventListener("selectstart", e => e.preventDefault());
+})();
+document.addEventListener("dragstart", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
 let showOnlyReceived = false;
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
@@ -556,7 +556,7 @@ if (todayBtn) {
 }  
 
 // 🔹 إعادة التاريخ للقيمة الافتراضية    
-const defaultStart = "2026-02-01";  // 01-Feb-2026    
+const defaultStart = "";  // 01-Feb-2026    
 const today = new Date().toISOString().slice(0, 10);  
 
 dateFrom.value = defaultStart;  
@@ -584,7 +584,7 @@ if (todayBtn) {
 }  
 
 // 🔹 إعادة التاريخ للقيمة الافتراضية    
-const defaultStart = "2026-02-01";  // 01-Feb-2026    
+const defaultStart = "";  
 const today = new Date().toISOString().slice(0, 10);  
 
 dateFrom.value = defaultStart;  
