@@ -207,7 +207,23 @@ if (timeValue) {
         distributionCache = newMap;  
 
         distributedOrdersMap = newMap;  
+allOrders.forEach(order => {
 
+    if (!newMap[order.orderNo]) return;
+
+    // أخذ بيانات الـ Batch من Firebase إذا كانت موجودة
+    if (order.batch) {
+
+        newMap[order.orderNo].batch = order.batch.name;
+        newMap[order.orderNo].batchType = order.batch.type;
+
+        // إذا لم يوجد وقت في الـ CSV استخدم وقت Firebase
+        if (!newMap[order.orderNo].time && order.batch.time) {
+            newMap[order.orderNo].time = order.batch.time;
+        }
+    }
+
+});
         lastDistributionHash = newHash;  
 
         updateDashboard();  
@@ -909,7 +925,6 @@ box-shadow:
         </div>
 
     </div>
-<div id="batchesTable" style="margin-top:20px;"></div>
 
     `;
 
@@ -920,7 +935,6 @@ box-shadow:
     container.classList.remove("hidden");
 
 renderReadyOrders();
-renderBatchesTable(); // 🔥 مهم
 }
 function distributeSelectedOrders() {
 
@@ -1033,7 +1047,7 @@ Promise.all(
 }).then(() => {
 
     renderReadyOrders();
-    renderBatchesTable();
+    
     updateDashboard();
 
         console.log("✅ Orders distributed successfully");
