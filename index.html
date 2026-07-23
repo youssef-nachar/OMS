@@ -1007,7 +1007,8 @@
                             <i class="fa-solid fa-clock-rotate-left"></i>
                             Complain History
                         </div>
-
+                    </div>
+                    <div class="history-card">
                         <div class="history-toolbar">
 
                             <div class="history-search">
@@ -1028,16 +1029,18 @@
                                     <option value="">All Fault By</option>
 
                                 </select>
-                            </div>
-
-                            <div class="history-filter">
-
-                                <i class="fa-solid fa-calendar-days"></i>
-
-                                <input type="date" id="commentDateFilter" onchange="loadOrderComments()">
 
                             </div>
+    <div style="display: flex; ">
+        <input type="date" id="commentFromDate">
 
+    <input type="date" id="commentToDate">
+
+    <button onclick="loadOrderComments()">
+        Filter
+    </button>
+
+    </div>
 
                             <button class="history-reset" onclick="
         document.getElementById('commentSearch').value='';
