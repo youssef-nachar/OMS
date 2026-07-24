@@ -85,7 +85,7 @@ document.addEventListener("keydown", function (e) {
 
 })();
 document.addEventListener("dragstart", e => e.preventDefault());
-document.addEventListener("selectstart", e => e.preventDefault());
+// document.addEventListener("selectstart", e => e.preventDefault());
 let showOnlyReceived = false;
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
