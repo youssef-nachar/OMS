@@ -28,10 +28,34 @@ const filtered = allOrders.filter(o => {
 <tr>
     <th>Order #</th>
     <th>Warehouses</th>
+    <th>Received</th>
+    <th>Packing</th>
+    <th>Distributed</th>
+    <th>Batch</th>
     <th>Status</th>
     <th>Comment</th>
 </tr>
+
         ${filtered.map(order => {
+const distributedInfo = distributedOrdersMap[order.orderNo];
+
+const receivedHTML = order.warehouses
+    .map(w => `
+        <div>
+            <b>${w.base.toUpperCase()}</b><br>
+            ${formatLebanonDateTime(w.receivedTime) || "-"}
+        </div>
+    `)
+    .join("<hr style='margin:4px 0;border-color:#334155;'>");
+
+const packingHTML = order.warehouses
+    .map(w => `
+        <div>
+            <b>${w.base.toUpperCase()}</b><br>
+            ${formatLebanonDateTime(w.packingTime) || "-"}
+        </div>
+    `)
+    .join("<hr style='margin:4px 0;border-color:#334155;'>");
 
         /* ---------------- STATUS ---------------- */
 
@@ -67,15 +91,29 @@ const filtered = allOrders.filter(o => {
 
             let tooltipText = "";
 
-            if (order.status === "distributed") {
-                tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
-            }
-            else if (w.packed) {
-                tooltipText = `Received at Packing: ${w.packingTime || w.receivedTime || "-"}`;
-            }
-            else {
-                tooltipText = `Received in Warehouse: ${w.receivedTime || "-"}`;
-            }
+const distributedInfo = distributedOrdersMap[order.orderNo];
+
+tooltipText = `
+<b>${w.base.toUpperCase()}</b><br><br>
+
+📥 <b>Received:</b><br>
+${formatLebanonDateTime(w.receivedTime) || "-"}
+
+<br><br>
+
+📦 <b>Packing:</b><br>
+${formatLebanonDateTime(w.packingTime) || "-"}
+
+<br><br>
+
+🚚 <b>Distributed:</b><br>
+${distributedInfo?.date || "-"}
+
+<br><br>
+
+🏷️ <b>Batch:</b>
+${distributedInfo?.batch || "-"}
+`;
 
             return `  
                         <div style="position:relative;display:inline-block;">  
@@ -92,25 +130,29 @@ const filtered = allOrders.filter(o => {
                                 ${w.base.toUpperCase()}  
                             </span>  
   
-                            <div style="  
-                                position:absolute;  
-                                bottom:130%;  
-                                left:50%;  
-                                transform:translateX(-50%);  
-                                background:#0f172a;  
-                                color:white;  
-                                padding:8px 10px;  
-                                border-radius:8px;  
-                                font-size:12px;  
-                                white-space:nowrap;  
-                                opacity:0;  
-                                pointer-events:none;  
-                                transition:.2s ease;  
-                                box-shadow:0 8px 25px rgba(0,0,0,.4);  
-                                z-index:9999;  
-                            " class="wh-tooltip">  
-                                ${tooltipText}  
-                            </div>  
+<div style="
+    position:absolute;
+    bottom:130%;
+    left:50%;
+    transform:translateX(-50%);
+    background:#0f172a;
+    color:white;
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:12px;
+    white-space:normal;
+    min-width:220px;
+    text-align:left;
+    line-height:1.5;
+    opacity:0;
+    pointer-events:none;
+    transition:.2s ease;
+    box-shadow:0 8px 25px rgba(0,0,0,.4);
+    z-index:9999;
+" class="wh-tooltip">
+    ${tooltipText}
+</div>
+
                         </div>  
                         `;
         }).join("")}  
@@ -135,9 +177,7 @@ const filtered = allOrders.filter(o => {
                         <i class="fa-solid fa-truck"></i>  
                         Distributed by ${distributedOrdersMap[order.orderNo].company}  
                     </div>  
-                    <div style="opacity:.7;margin-top:2px;">  
-                        ${distributedOrdersMap[order.orderNo].date}  
-                    </div>  
+
                 </div>  
                 `
                 : "";
@@ -153,9 +193,26 @@ const filtered = allOrders.filter(o => {
                         ${distributedBox}  
                     </td>  
   
-                    <td>${warehousesHTML}</td>  
-  
-                    <td>${statusText}</td>  
+<td>${warehousesHTML}</td>
+
+<td style="font-size:12px;">
+    ${receivedHTML}
+</td>
+
+<td style="font-size:12px;">
+    ${packingHTML}
+</td>
+
+<td style="font-size:12px;">
+    ${distributedInfo?.date || "-"}
+</td>
+
+<td style="font-size:12px;">
+    ${distributedInfo?.batch || "-"}
+</td>
+
+<td>${statusText}</td>
+
                     <td style="
     color:#38bdf8;
     font-size:12px;
@@ -187,4 +244,3 @@ const filtered = allOrders.filter(o => {
 
     resultsDiv.style.display = "block";
 }
-
