@@ -1,6 +1,6 @@
 
 function showReportsTab() {
-  document.getElementById("aboutTab").classList.add("hidden");
+  // document.getElementById("aboutTab").classList.add("hidden");
 document.getElementById("reportConfigPage").classList.add("hidden")
 document.getElementById("dashboardHeader").style.display = "none";  
     document.getElementById("orderCommentsTab")
