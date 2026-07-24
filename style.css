@@ -4715,3 +4715,12 @@ width:100%;
 #commentSearch{
     width:1000px
 }
+.history-card{
+    overflow: scroll;
+    height: 700px;
+}
+
+#newOrdersList{
+    overflow: scroll;
+    height: 700px;
+}
