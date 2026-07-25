@@ -212,16 +212,26 @@ allOrders.forEach(order => {
     if (!newMap[order.orderNo]) return;
 
     // أخذ بيانات الـ Batch من Firebase إذا كانت موجودة
-    if (order.batch) {
+    const firebaseTime =
+    order.distributedTime ||
+    order.batch?.time;
 
-        newMap[order.orderNo].batch = order.batch.name;
-        newMap[order.orderNo].batchType = order.batch.type;
+if (!newMap[order.orderNo].time && firebaseTime) {
 
-        // إذا لم يوجد وقت في الـ CSV استخدم وقت Firebase
-        if (!newMap[order.orderNo].time && order.batch.time) {
-            newMap[order.orderNo].time = order.batch.time;
-        }
-    }
+    const d = new Date(firebaseTime);
+
+    newMap[order.orderNo].time =
+        d.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+        });
+}
+
+if (order.batch) {
+    newMap[order.orderNo].batch = order.batch.name;
+    newMap[order.orderNo].batchType = order.batch.type;
+}
 
 });
         lastDistributionHash = newHash;  
