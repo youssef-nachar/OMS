@@ -1732,24 +1732,6 @@ localStorage.setItem("userRole", user.role);
 location.reload();
 
 }
-
-function removeReadyToReturnOrder(orderNo) {
-
-    const confirmed = confirm(
-        `Remove ${orderNo} from Ready To Return list?`
-    );
-
-    if (!confirmed) return;
-
-    delete readyToReturnOrders[orderNo];
-
-    saveReturnedOrders();
-
-    renderReturnedOrders();
-
-    updateDashboard();
-
-}
 function normalizeDateOnly(dateStr) {
     if (!dateStr) return "No Date";
 
