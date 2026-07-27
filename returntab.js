@@ -891,3 +891,20 @@ function exportSelectedReadyToReturn() {
         `Ready_To_Return_${new Date().toISOString().slice(0,10)}.xlsx`
     );
 }
+function removeReadyToReturnOrder(orderNo) {
+
+    const confirmed = confirm(
+        `Remove ${orderNo} from Ready To Return list?`
+    );
+
+    if (!confirmed) return;
+
+    delete readyToReturnOrders[orderNo];
+
+    saveReturnedOrders();
+
+    renderReturnedOrders();
+
+    updateDashboard();
+
+}
