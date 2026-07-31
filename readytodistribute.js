@@ -106,7 +106,6 @@ const timeValue =
     TIME_COL !== -1
         ? r[TIME_COL]
         : "";
-        console.log("TIME =", timeValue);
             if (!orderNo || !rawDate) return;  
 
             const formattedDate =  
