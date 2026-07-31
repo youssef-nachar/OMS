@@ -2031,8 +2031,6 @@ ${repliesHtml}
     
 
     container.innerHTML = html;
-    console.log("FROM:", fromDate);
-console.log("TO:", toDate);
 
 };
 window.deleteReply = async function(
