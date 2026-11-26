@@ -1,0 +1,1671 @@
+let recentOrders = [];
+let selectedFromDate = "";
+let selectedToDate = "";
+let unrepliedOnly = false;
+
+let ordersWithReplies = new Set();
+let orderCommentsCache = {};
+
+function listenToOrderComments() {
+
+    onValue(ref(db, "orderCommentsData"), snap => {
+
+        orderCommentsCache = snap.val() || {};
+        if (!allOrders) return;
+
+        allOrders.forEach(order => {
+            order.comment =
+                orderCommentsCache[order.orderNo]?.comment || "";
+        });
+
+        scheduleViews({ dashboard: false });
+
+    });
+
+}
+function showNewOrderTab() {
+
+    const dashboardHeader = document.getElementById("dashboardHeader");
+    if (dashboardHeader) dashboardHeader.style.display = "none";
+
+    if (!can("addOrders")) {        
+
+        const searchInput = document.getElementById("newOrderSearch");
+        const hashtag = document.getElementById("hashtag");
+        const orderNumber = document.getElementById("newOrderNumber");
+
+        if (hashtag) hashtag.style.display = "none";
+        if (orderNumber) orderNumber.style.display = "none";
+    }
+    document.querySelectorAll(".main > div").forEach(div => {
+        if (div.id !== "newOrderTab") div.classList.add("hidden");
+    });
+    document.getElementById("newOrderTab").classList.remove("hidden");
+listenToOrderComments();
+listenToOrders();
+
+    const warehouseInput = document.getElementById("newWarehouseName");
+    const userWarehouse = localStorage.getItem("currentWarehouse");
+
+    if (userWarehouse) {
+
+        warehouseInput.value = userWarehouse;
+
+        if (userWarehouse === "manager") {
+            warehouseInput.readOnly = false;
+        } else {
+            warehouseInput.readOnly = true;
+        }
+
+    }
+
+    setTodayForNewOrder();
+}
+window.toggleMenu = function (e) {
+    e.stopPropagation();
+
+    const menu = document.getElementById("quickDateMenu");
+    if (!menu) return;
+
+    menu.classList.toggle("hidden");
+};
+
+document.addEventListener("click", function (e) {
+    const menu = document.getElementById("quickDateMenu");
+    if (!menu) return;
+
+    if (!menu.contains(e.target) && !e.target.closest(".three-dots")) {
+        menu.classList.add("hidden");
+    }
+});
+function normalizeWarehouseName(name) {
+
+    let value = (name || "")
+        .toUpperCase()
+        .trim()
+        .replace(/'/g, "");
+
+    if (
+        value === "LOREAL LUX" ||
+        value === "L OREAL LUX"
+    ) {
+        return "L'OREAL LUX";
+    }
+
+    return value;
+}
+function setTodayForNewOrder() {
+    const today = todayLocalISO();
+    document.getElementById("newOrderDate").value = today;
+}
+// =============================
+// SIMPLE ENCRYPTION
+// =============================
+function simpleEncrypt(text) {
+    return btoa(text); // Base64 encode
+}
+
+function simpleDecrypt(text) {
+    return atob(text);
+}
+function saveNewOrder() {
+
+    if (!can("addOrders")) return;
+
+    const orderNo = document
+        .getElementById("newOrderNumber")
+        .value.trim()
+        .toUpperCase();
+
+    const warehouseInput = normalizeWarehouseName(
+        document.getElementById("newWarehouseName").value
+    );
+
+    const date = document
+        .getElementById("newOrderDate").value;
+
+    if (!orderNo || !warehouseInput || !date) {
+        // showToast("⚠️ Please fill all fields");
+        return;
+    }
+
+    const ordersRef = ref(db, "orders_new");
+
+    runTransaction(ordersRef, (orders) => {
+
+        if (!orders) orders = {};
+
+        let existingKey = null;
+
+        Object.entries(orders).forEach(([key, order]) => {
+            if (order.orderNo === orderNo) {
+                existingKey = key;
+            }
+        });
+
+        if (existingKey) {
+
+            const order = orders[existingKey];
+
+            const exists = order.warehouses?.some(
+                w => w.base.toUpperCase() === warehouseInput
+            );
+
+            if (exists) return orders;
+
+            order.warehouses.push({
+                base: warehouseInput,
+                packed: false,
+                receivedTime: new Date().toISOString()
+            });
+
+            orders[existingKey] = order;
+
+        } else {
+
+            const newKey = push(ref(db, "orders_new")).key;
+
+            orders[newKey] = {
+                orderNo: orderNo,
+                date: date,
+                createdAt: new Date().toISOString(),
+                history: [
+                    {
+                        action: "created",
+                        date: new Date().toISOString(),
+                        by: localStorage.getItem("currentWarehouse")
+                    }
+                ],
+                warehouses: [
+                    {
+                        base: warehouseInput,
+                        packed: false,
+                        receivedTime: new Date().toISOString()
+                    }
+                ],
+                status: "pending",
+                source: "new_order_tab"
+            };
+        }
+
+        return orders;
+
+    }).then(() => {
+
+        // تنظيف الفورم مثل السابق
+        clearNewOrderForm();
+
+    });
+
+}
+const PAGE_SIZE = 60;
+let visibleCount = PAGE_SIZE;
+// 🔥 
+function buildRecentOrders() {
+
+    if (!allOrders || !allOrders.length) {
+        recentOrders = [];
+        return;
+    }
+
+    // ترتيب حسب وقت الإنشاء
+    const sorted = allOrders
+        .slice()
+        .sort((a, b) => {
+
+ const aDate = new Date(a.createdAt || a.date).getTime();
+const bDate = new Date(b.createdAt || b.date).getTime();
+            return bDate - aDate; // الأحدث أولاً
+        });
+
+    recentOrders = sorted; // كل الطلبات
+}
+let showOnlyPending = false;
+function togglePendingFilter() {
+
+    showOnlyPending = !showOnlyPending;
+
+    const btn = document.getElementById("pendingToggleBtn");
+
+    const count = getPendingCount(); // ✅ العدد
+
+    if (showOnlyPending) {
+        btn.style.background = "#f59e0b";
+        btn.textContent = `Showing Pending (${count})`;
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = `Show Pending Only (${count})`;
+    }
+
+    renderRecentOrders();
+}
+function togglePartialFilter() {
+
+    showOnlyPartial = !showOnlyPartial;
+
+    const btn = document.getElementById("partialToggleBtn");
+
+    const count = getPartialCount();
+
+    if (showOnlyPartial) {
+        btn.style.background = "#f97316";
+        btn.textContent = `Showing Partial (${count})`;
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = `Show Partial Only (${count})`;
+    }
+
+    renderRecentOrders();
+}
+function getPartialCount() {
+    const base = getBaseFilteredOrders();
+    return base.filter(o => o.status === "partial").length;
+}
+function toggleReceivedFilter() {
+
+    showOnlyReceived = !showOnlyReceived;
+
+    const btn = document.getElementById("receivedToggleBtn");
+
+    const count = getReceivedCount();
+
+    if (showOnlyReceived) {
+        btn.style.background = "#22c55e";
+        btn.textContent = `Showing Received (${count})`;
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = `Show Received (${count})`;
+    }
+
+    renderRecentOrders();
+}
+function getBaseFilteredOrders() {
+
+    const currentWarehouse = localStorage.getItem("currentWarehouse");
+
+    const DEFAULT_START = "2026-02-01"; // 🔥 هنا
+
+    return recentOrders.filter(order => {
+if (can("filterByWarehouse") && selectedWarehouseFilter) {
+
+    const match = order.warehouses?.some(w =>
+        (w.base || "").trim().toUpperCase() === selectedWarehouseFilter
+    );
+
+    if (!match) return false;
+}
+        const orderDate = getOrderDate(order);
+// ===== Date Range Filter =====
+if (selectedFromDate && orderDate < selectedFromDate) {
+    return false;
+}
+
+if (selectedToDate && orderDate > selectedToDate) {
+    return false;
+}
+        // 🔥 فلترة من تاريخ معين
+        if (orderDate < DEFAULT_START) return false;
+if (selectedDateFilter) {
+    const orderDate = getOrderDate(order);
+
+    const keepOld =
+        order.status === "pending" ||
+        order.status === "partial" ||
+        order.status === "completed"; // in-packing
+
+    if (orderDate !== selectedDateFilter && !keepOld) {
+        return false;
+    }
+}
+        if (can("receivePacking") && order.status === "distributed") {
+            return false;
+        }
+
+        return true;
+    });
+}
+document.getElementById("fromDateFilter")
+?.addEventListener("change", function () {
+
+    selectedFromDate = this.value;
+    renderRecentOrders();
+
+});
+
+document.getElementById("toDateFilter")
+?.addEventListener("change", function () {
+
+    selectedToDate = this.value;
+    renderRecentOrders();
+
+});
+function getReceivedCount() {
+    const base = getBaseFilteredOrders();
+
+    return base.filter(order =>
+        order.status !== "distributed" &&
+        order.status !== "ready_to_distribute" && // 🔥 مهم
+        order.warehouses?.every(w => w.packed === true)
+    ).length;
+}
+function getPendingCount() {
+    const base = getBaseFilteredOrders();
+    return base.filter(o => o.status === "pending").length;
+}
+function renderRecentOrders() {
+
+    const role = localStorage.getItem("userRole");
+    const container = document.getElementById("newOrdersList");
+    if (!container) return;
+    if (!can("orderFilters")) {
+        const btn = document.getElementById("commentsToggleBtn");
+        document.getElementById('receivedToggleBtn').style.display="none";
+        document.getElementById('partialToggleBtn').style.display="none"
+        if (btn) btn.style.display = "none";
+    }
+    if (!can("orderFilters")) {
+        const pendingBtn = document.getElementById("pendingToggleBtn");
+        
+        if (pendingBtn) pendingBtn.style.display = "none";
+        if (pendingBtn) {
+            const count = getPendingCount();
+
+            if (showOnlyPending) {
+                pendingBtn.textContent = `Showing Pending (${count})`;
+            } else {
+                pendingBtn.textContent = `Show Pending Only (${count})`;
+            }
+        }
+
+    }
+
+    container.innerHTML = "";
+
+const currentWarehouse = localStorage.getItem("currentWarehouse");
+const sortedOrders = [...recentOrders].sort((a, b) => {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+});
+
+let filteredOrders = getBaseFilteredOrders();
+filteredOrders = filteredOrders.filter(order => {
+if (unrepliedOnly) {
+    const hasComment = order.comment && order.comment.trim() !== "";
+    const hasReply = ordersWithReplies.has(order.orderNo);
+
+    if (!hasComment || hasReply) return false;
+}
+if (selectedDateFilter) {
+    const orderDate = getOrderDate(order);
+
+    const keepOld =
+        order.status === "pending" ||
+        order.status === "partial" ||
+        order.status === "completed"; // In-Packing
+
+    if (orderDate !== selectedDateFilter && !keepOld) {
+        return false;
+    }
+}
+    if (can("viewReady") && order.status === "distributed") {
+        return false;
+    }
+
+    if (showOnlyPending && order.status !== "pending" && order.status !== "partial") return false;
+
+    if (showOnlyPartial && order.status !== "partial") return false;
+
+    if (showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
+
+    if (showOnlyReceived) {
+        const hasReceived = order.warehouses?.every(w => w.packed === true);
+        if (!hasReceived) return false;
+    }
+    if (showOnlyDistributed &&
+    order.status !== "distributed" &&
+    order.status !== "ready_to_distribute") return false;
+
+    return true;
+});
+    // 🔥 عرض فقط عدد محدد
+    const visibleOrders = filteredOrders.slice(0, visibleCount);
+    const fragment = document.createDocumentFragment();     // one DOM write instead of one per card
+
+    visibleOrders.forEach(order => {
+        const card = document.createElement("div");
+
+        card.style.cssText = `
+    background:#020617;
+    border:1px solid #1f2937;
+    padding:14px;
+    border-radius:14px;
+    transition:.2s;
+    height: fit-content;
+    content-visibility:auto;
+    contain-intrinsic-size:auto 230px;
+`;
+
+
+const statusColor =
+    order.status === "distributed" ? "#22c55e" :
+    order.status === "ready_to_distribute" ? "#3b82f6" : // 🔥 أزرق واضح
+    order.status === "completed" ? "#22c55e" :
+    order.status === "partial" ? "#f59e0b" :
+    order.status === "canceled" ? "#ef4444" :
+    "#f59e0b";
+
+        card.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:10px;">
+
+            <!-- Header -->
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                
+                <div style="display:flex;flex-direction:column">
+                    <span style="font-weight:700;font-size:15px;letter-spacing:.5px">
+                        ${order.orderNo}
+                    </span>
+                    <span style="font-size:11px;opacity:.5">
+                        ${order.createdAt ? new Date(order.createdAt).toLocaleString() : order.date}
+                    </span>
+                </div>
+
+             <div style="display:flex;align-items:center;gap:6px">
+
+    ${can("viewHistory") ? `
+    <button onclick="showOrderHistory('${order.orderNo}')"
+    style="
+        background:#0ea5e9;
+        border:none;
+        padding:5px 10px;
+        border-radius:6px;
+        cursor:pointer;
+        font-size:11px;
+        font-weight:600;
+        color:white;
+    ">
+        Info
+    </button>
+    ` : ""}
+
+    <button onclick="openEditOrder('${order.orderNo}')"
+    style="
+        background:linear-gradient(135deg,#3b82f6,#2563eb);
+        border:none;
+        padding:5px 10px;
+        border-radius:6px;
+        cursor:pointer;
+        font-size:11px;
+        font-weight:600;
+        color:white;
+        box-shadow:0 0 8px #3b82f666;
+    ">
+        Edit
+    </button>
+
+<div style="display:flex;align-items:center;gap:6px">
+
+    <span style="
+        background:${statusColor};
+        padding:5px 12px;
+        border-radius:20px;
+        font-size:11px;
+        font-weight:700;
+        color:black;
+        box-shadow:0 0 10px ${statusColor}55;
+    ">
+        ${order.status}
+    </span>
+
+    ${order.status === "canceled" ? `
+        <button onclick="reopenOrder('${order.orderNo}')"
+        style="
+            background:#22c55e;
+            border:none;
+            padding:5px 10px;
+            border-radius:6px;
+            cursor:pointer;
+            font-size:11px;
+            font-weight:700;
+            color:black;
+        ">
+            Reopen
+        </button>
+    ` : ""}
+
+</div>
+
+</div>
+            </div>
+
+            <!-- Warehouses -->
+            <div style="
+                display:flex;
+                flex-wrap:wrap;
+                gap:6px;
+            ">
+
+                ${order.warehouses.map(w => {
+
+            const wf = document.getElementById("warehouseFilter");
+if (wf) wf.style.display = can("filterByWarehouse") ? "block" : "none";
+const isPacking = can("receivePacking") && !w.packed;
+            return `
+                    <div style="
+                        background:#0f172a;
+                        border:1px solid #1f2937;
+                        padding:6px 8px;
+                        border-radius:8px;
+                        display:flex;
+                        align-items:center;
+                        gap:6px;
+                    ">
+
+                        <span style="font-size:11px;font-weight:600">
+                            📍 ${w.base.toUpperCase()}
+                        </span>
+
+                        ${w.packed
+                    ? `<span style="color:#22c55e;font-size:11px">✔</span>`
+                    : isPacking
+                        ? `
+                                <button onclick="markWarehousePacking('${order.orderNo}', \`${w.base}\`)"
+                                style="
+                                background:linear-gradient(135deg,#22c55e,#16a34a);
+                                border:none;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-size:10px;
+                                font-weight:700;
+                                cursor:pointer;
+                                color:white;
+                                box-shadow:0 0 8px #22c55e66;
+                                ">
+                                Receive
+                                </button>
+                                `
+                        : `<span style="color:#f59e0b;font-size:11px">Pending</span>`
+                }
+
+                    </div>
+                    `;
+
+        }).join("")}
+
+            </div>
+
+${order.comment ? `
+<div style="
+    font-size:12px;
+    color:#38bdf8;
+    background:#020617;
+    padding:8px;
+    border-radius:8px;
+    border:1px dashed #1f2937;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+">
+
+    <div>
+        💬 ${order.comment}
+    </div>
+
+    <button
+        onclick="openCommentModal('${order.orderNo}', \`${order.comment.replace(/`/g, "")}\`)"
+        style="
+            align-self:flex-start;
+            background:#0ea5e9;
+            border:none;
+            padding:4px 10px;
+            border-radius:6px;
+            font-size:11px;
+            color:white;
+            cursor:pointer;
+            font-weight:600;
+        ">
+        Reply
+    </button>
+
+</div>
+` : ""}
+
+        </div>
+        `;
+
+        // ✨ Hover Effect
+        card.onmouseenter = () => {
+            card.style.transform = "scale(1.01)";
+            card.style.boxShadow = "0 0 20px #0ea5e933";
+        };
+
+        card.onmouseleave = () => {
+            card.style.transform = "scale(1)";
+            card.style.boxShadow = "none";
+        };
+
+        fragment.appendChild(card);
+    });
+    // زر عرض المزيد
+    if (filteredOrders.length > visibleCount) {
+
+        const loadMoreBtn = document.createElement("button");
+
+        loadMoreBtn.textContent = "Show More →";
+        loadMoreBtn.style.cssText = `
+        width:100%;
+        padding:10px;
+        margin-top:10px;
+        background:#0ea5e9;
+        border:none;
+        border-radius:8px;
+        color:white;
+        cursor:pointer;
+        font-weight:600;
+    `;
+
+        loadMoreBtn.onclick = () => {
+            visibleCount += PAGE_SIZE;
+            renderRecentOrders();
+        };
+
+        fragment.appendChild(loadMoreBtn);
+    }
+    container.replaceChildren(fragment);
+    document.getElementById("newOrderPreview").classList.remove("hidden");
+
+
+const exportBtn = document.getElementById("exportBtn");
+
+if (exportBtn) {
+    if (showOnlyPending) {
+        exportBtn.textContent = "Export Pending";
+    } 
+    else if (showOnlyReceived) {
+        exportBtn.textContent = "Export Received";
+    }
+    else if (showOnlyComments) {
+        exportBtn.textContent = "Export Comments";
+    }
+       else if (showOnlyPartial) {
+        exportBtn.textContent = "Export partial";
+    }
+    
+    else {
+        exportBtn.textContent = "Export All";
+    }
+}
+
+const receivedBtn = document.getElementById("receivedToggleBtn");
+if (receivedBtn) {
+    const count = getReceivedCount();
+
+    if (showOnlyReceived) {
+        receivedBtn.textContent = `Showing Received (${count})`;
+        receivedBtn.style.background = "#22c55e";
+    } else {
+        receivedBtn.textContent = `Show Received (${count})`;
+        receivedBtn.style.background = "#020617";
+    }
+}
+updateFilterButtonsCounts();
+updateFilterButtonsCounts();
+fillWarehouseDropdown();
+}
+
+function reopenOrder(orderNo) {
+
+    const paths = ["orders", "orders_new"];
+
+    paths.forEach(path => {
+
+        get(ref(db, path)).then(snapshot => {
+
+            snapshot.forEach(child => {
+
+                const order = child.val();
+
+                if (order.orderNo === orderNo) {
+
+                    update(ref(db, `${path}/${child.key}`), {
+
+                        status: "pending",
+
+                        history: [
+                            ...(order.history || []),
+                            {
+                                action: "reopened",
+                                date: new Date().toISOString(),
+                                by: localStorage.getItem("currentWarehouse")
+                            }
+                        ]
+
+                    });
+
+                }
+
+            });
+
+        });
+
+    });
+
+}
+
+function updateFilterButtonsCounts() {
+
+    const pendingBtn = document.getElementById("pendingToggleBtn");
+    const partialBtn = document.getElementById("partialToggleBtn");
+    const receivedBtn = document.getElementById("receivedToggleBtn");
+
+    if (!recentOrders) return;
+
+    const pendingCount = getPendingCount();
+    const partialCount = getPartialCount();
+    const receivedCount = getReceivedCount();
+
+    // ================= Pending =================
+    if (pendingBtn) {
+        if (showOnlyPending) {
+            pendingBtn.textContent = `Showing Pending (${pendingCount})`;
+            pendingBtn.style.background = "#f59e0b";
+        } else {
+            pendingBtn.textContent = `Show Pending Only (${pendingCount})`;
+            pendingBtn.style.background = "#020617";
+        }
+    }
+
+    // ================= Partial =================
+    if (partialBtn) {
+        if (showOnlyPartial) {
+            partialBtn.textContent = `Showing Partial (${partialCount})`;
+            partialBtn.style.background = "#f97316";
+        } else {
+            partialBtn.textContent = `Show Partial Only (${partialCount})`;
+            partialBtn.style.background = "#020617";
+        }
+    }
+
+    // ================= Received =================
+    if (receivedBtn) {
+        if (showOnlyReceived) {
+            receivedBtn.textContent = `Showing Received (${receivedCount})`;
+            receivedBtn.style.background = "#22c55e";
+        } else {
+            receivedBtn.textContent = `Show Received (${receivedCount})`;
+            receivedBtn.style.background = "#020617";
+        }
+    }
+}
+
+let ordersListenersStarted = false;
+let rawOrdersOld = {};
+let rawOrdersNew = {};
+
+function listenToOrders() {
+
+    if (ordersListenersStarted) return;
+    ordersListenersStarted = true;
+
+    get(ref(db, "orderComments")).then(snap => {
+        ordersWithReplies.clear();
+        Object.values(snap.val() || {}).forEach(r => {
+            if (r.type === "reply" && r.orderNo) ordersWithReplies.add(r.orderNo);
+        });
+    });
+
+    onValue(ref(db, "orders"), snap => {
+        rawOrdersOld = snap.val() || {};
+        rebuildAllOrders();
+    });
+
+    onValue(ref(db, "orders_new"), snap => {
+        rawOrdersNew = snap.val() || {};
+        rebuildAllOrders();
+    });
+
+    startDistributionAutoRefresh();
+}
+
+function rebuildAllOrders() {
+
+    const currentWarehouse = (localStorage.getItem("currentWarehouse") || "").trim();
+
+    const merged = mergeOrdersByNumber([
+        ...Object.values(rawOrdersOld),
+        ...Object.values(rawOrdersNew)
+    ]);
+
+    merged.forEach(order => {
+        const cached = orderCommentsCache[order.orderNo]?.comment;
+        if (cached !== undefined) order.comment = cached;
+    });
+
+    if (can("viewAllWarehouses")) {
+        allOrders = merged;
+    } else {
+        const mine = normalizeWarehouseName(currentWarehouse);
+        allOrders = merged
+            .filter(order => order.warehouses?.some(w => normalizeWarehouseName(w.base) === mine))
+            .map(order => ({
+                ...order,
+                warehouses: order.warehouses.filter(w => normalizeWarehouseName(w.base) === mine)
+            }));
+    }
+
+    allOrders.sort((a, b) =>
+        new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)
+    );
+
+    allOrders.forEach(order => {
+        if (!order.history) order.history = [];
+        order.warehouseCount = order.warehouses ? order.warehouses.length : 0;
+    });
+
+    // the sheet data must be merged BEFORE statuses are resolved
+    loadDistributedOrders();
+
+    allOrders.forEach(order => {
+        order.status = resolveOrderStatus(order);
+    });
+
+    buildRecentOrders();
+    scheduleViews();
+}
+function clearNewOrderForm() {
+
+    document.getElementById("newOrderNumber").value = "";
+
+    // لا تمسح المستودع إذا كان من المستخدم المسجل
+    const warehouseInput = document.getElementById("newWarehouseName");
+    const userWarehouse = localStorage.getItem("currentWarehouse");
+
+    if (userWarehouse) {
+        warehouseInput.value = userWarehouse;
+        warehouseInput.readOnly = true;
+    } else {
+        warehouseInput.value = "";
+    }
+
+    // أعد ضبط التاريخ لليوم
+    setTodayForNewOrder();
+}
+function mergeOrdersByNumber(orders) {
+
+    const map = {};
+
+    orders.forEach(order => {
+
+        const orderNo = (order.orderNo || "").trim().toUpperCase();
+
+        if (!map[orderNo]) {
+map[orderNo] = {
+    ...order,
+    warehouses: [],
+    history: order.history || []   // 🔥 IMPORTANT FIX
+};
+        }
+if (order.status) {
+    map[orderNo].status = order.status;
+}
+       (order.warehouses || []).forEach(w => {
+
+    const normalizedWarehouse = {
+        ...w,
+        base: normalizeWarehouseName(w.base)
+    };
+
+    const exists = map[orderNo].warehouses.some(x =>
+        normalizeWarehouseName(x.base) === normalizedWarehouse.base
+    );
+
+    if (!exists) {
+        map[orderNo].warehouses.push(normalizedWarehouse);
+    }
+
+});
+
+    });
+
+    return Object.values(map);
+
+}
+function showOrderPreview(order) {
+
+    const previewContainer = document.getElementById("newOrderPreview");
+    const list = document.getElementById("newOrdersList");
+
+    const orderCard = document.createElement("div");
+
+    orderCard.style.cssText = `
+        background:#0f172a;
+        border:1px solid #1f2937;
+        padding:16px;
+        border-radius:14px;
+        margin-bottom:12px;
+        animation:fadeIn .3s ease;
+    `;
+    const statusText = order.status === "in-packing" ? "In-Packing" : "Pending";
+    const statusColor = order.status === "in-packing" ? "#22c55e" : "#f59e0b";
+    orderCard.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center">
+
+            <div>
+                <div style="font-size:15px;font-weight:600">
+                    ${order.orderNo}
+                </div>
+
+                <div style="font-size:12px;opacity:.7;margin-top:4px">
+                    📅 ${order.date} &nbsp; ⏰ ${order.time || ""}
+                </div>
+
+                <div class="saved-comment" style="
+                    margin-top:6px;
+                    font-size:12px;
+                    color:#22c55e;
+                    font-weight:600;
+                ">
+                    ${order.comment ? "📝 " + order.comment : ""}
+                </div>
+
+                <div style="
+                    font-size:12px;
+                    margin-top:6px;
+                    display:inline-block;
+                    background:#1e293b;
+                    padding:4px 10px;
+                    border-radius:8px;
+                    font-weight:600;
+                    color:#38bdf8;
+                ">
+                </div>
+            </div>
+
+            <span style="
+    background:${statusColor};
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:11px;
+    font-weight:600;
+">
+    ${statusText}
+</span>
+        </div>
+
+        <div style="margin-top:12px">
+            <textarea 
+                placeholder="Write comment..."
+                style="
+                    width:100%;
+                    background:#020617;
+                    border:1px solid #1f2937;
+                    border-radius:10px;
+                    padding:8px;
+                    color:white;
+                    font-size:13px;
+                    resize:vertical;
+                    min-height:50px;
+                    outline:none;
+                "
+            ></textarea>
+
+            <button style="
+                margin-top:8px;
+                background:#22c55e;
+                border:none;
+                padding:6px 14px;
+                border-radius:8px;
+                font-size:12px;
+                font-weight:600;
+                cursor:pointer;
+            ">
+                Save
+            </button>
+        </div>
+    `;
+
+    const textarea = orderCard.querySelector("textarea");
+    const saveBtn = orderCard.querySelector("button");
+    const savedCommentDiv = orderCard.querySelector(".saved-comment");
+
+    // تحميل التعليق السابق داخل التكست
+    textarea.value = order.comment || "";
+
+saveBtn.addEventListener("click", async function () {
+
+    const value = textarea.value.trim();
+
+    order.comment = value;
+
+    await update(
+        ref(db, `orders/${order.firebaseKey}`),
+        {
+            comment:value
+        }
+    );
+
+    savedCommentDiv.textContent = value ? "📝 " + value : "";
+
+});
+    list.prepend(orderCard);
+    previewContainer.classList.remove("hidden");
+
+    const maxItems = 10;
+    if (list.children.length > maxItems) {
+        list.removeChild(list.lastChild);
+    }
+}
+function resolveOrderStatus(order) {
+
+    const orderNo = order.orderNo;
+    const warehouses = order.warehouses || [];
+
+    // 1) canceled
+    if (canceledOrdersSet.has(normalizeOrderNo(orderNo)) || order.status === "canceled") {
+        return "canceled";
+    }
+
+    const inSheet = !!getDistributionEntry(orderNo);
+
+    if (order.status === "canceled_before_delivery" ||
+        ((order.comment || "").toLowerCase().includes("canceled") && !inSheet)) {
+        return "canceled_before_delivery";
+    }
+
+    // 2) returned — only when EVERY warehouse of the order was returned
+    const active = warehouses.filter(w => normalizeWarehouseName(w.base) !== "PACKING STATION");
+    if (active.length > 0 && active.every(w => isWarehouseReturned(orderNo, w.base))) {
+        return "returned";
+    }
+
+    // 3) distributed (sheet, manual distribution, or stored time) beats checked / ready
+    if (order.status === "distributed" || inSheet || order.distributedTime) {
+        return "distributed";
+    }
+
+    // 4) checked, then ready
+    if (order.status === "checked") return "checked";
+
+    if (order.status === "ready_to_distribute" || order.readyToDistribute === true) {
+        return "ready_to_distribute";
+    }
+
+    // 5) derived from the warehouses
+    const packedCount = warehouses.filter(w => w.packed).length;
+
+    if (packedCount === 0) return "pending";
+    if (packedCount < warehouses.length) return "partial";
+    return "completed";
+}
+
+function showOrderHistory(orderNo) {
+    if (!requirePermission("viewHistory")) return;
+
+    const order = allOrders.find(o => o.orderNo === orderNo);
+    if (!order) return;
+
+const history = Array.isArray(order.history) ? order.history : [];
+    let html = "";
+
+    if (!history.length) {
+        html = `<div style="
+    text-align:center;
+    padding:20px;
+    color:#94a3b8;
+    font-size:13px;
+">
+    🕓 No activity recorded for this order yet
+</div>`;
+    } else {
+        // لمنع تكرار المستودعات
+        const seenWarehouses = new Set();
+
+        // ترتيب التاريخ من الأحدث للأقدم
+        history.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(h => {
+            let actionText = "";
+
+            if (h.action === "created") {
+                actionText = `🟢 Created`;
+            } else if (h.action === "edited") {
+
+                let commentChange = "";
+
+                if (h.oldComment !== h.newComment) {
+                    commentChange = `
+            <div style="margin-top:6px;font-size:12px;color:#fbbf24">
+                💬 Comment:
+                <br>
+                <span style="color:#ef4444">Old:</span> ${h.oldComment || "-"}
+                <br>
+                <span style="color:#22c55e">New:</span> ${h.newComment || "-"}
+            </div>
+        `;
+                }
+
+                actionText = `
+        ✏️ Edited (${h.oldOrderNo} → ${h.newOrderNo})
+        ${commentChange}
+    `;
+            }
+            else if (h.action === "packed") {
+                actionText = `📦 Packed in ${h.warehouse}`;
+            }
+
+            // عرض معلومات المستودعات مرة واحدة فقط
+            if (order.warehouses && order.warehouses.length) {
+                html += `<div style="margin-bottom:10px; display:flex; flex-direction:column; gap:6px;">`;
+                order.warehouses.forEach(w => {
+                    const key = w.base.trim().toLowerCase();
+                    if (seenWarehouses.has(key)) return;
+                    seenWarehouses.add(key);
+
+                    html += `
+                    <div style="
+                        background:#020617;
+                        padding:10px;
+                        border-radius:8px;
+                        border:1px solid #1f2937;
+                        font-size:12px;
+                        color:white;
+                    ">
+                        <div style="font-weight:600">📍 ${w.base.toUpperCase()}</div>
+                        <div style="opacity:0.7; font-size:11px; margin-top:3px;">
+                            🕒 Entered: ${w.receivedTime ? new Date(w.receivedTime).toLocaleString() : "-"}
+                        </div>
+                    </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            // عرض سجل الحدث
+            html += `
+            <div style="
+                background:#0f172a;
+                padding:10px;
+                border-radius:8px;
+                margin-bottom:8px;
+                border:1px solid #1f2937;
+                font-size:13px;
+                color:white;
+            ">
+                <div style="font-weight:600">${actionText}</div>
+                <div style="opacity:0.6; font-size:11px; margin-top:2px;">${new Date(h.date).toLocaleString()}</div>
+                <div style="color:#38bdf8; font-size:11px; margin-top:2px;">By: ${h.by || "-"}</div>
+            </div>
+            `;
+        });
+    }
+
+    document.getElementById("historyContent").innerHTML = html;
+    document.getElementById("historyModal").classList.remove("hidden");
+}
+function closeHistoryModal() {
+    document.getElementById("historyModal").classList.add("hidden");
+}
+document.getElementById("historyModal").addEventListener("click", function (e) {
+    if (e.target.id === "historyModal") {
+        closeHistoryModal();
+    }
+});
+function openEditOrder(orderNo) {
+    const role = localStorage.getItem("userRole");
+    const order = allOrders.find(o => o.orderNo === orderNo);
+    if (!order) return;
+    if (order.status === "canceled_before_delivery") {
+        // showToast("⛔ Cannot edit canceled order");
+        return;
+    }
+
+    document.getElementById("editOrderNumber").value = order.orderNo;
+    document.getElementById("editOrderComment").value = order.comment || "";
+
+    document.getElementById("editOrderModal").classList.remove("hidden");
+const orderInput = document.getElementById("editOrderNumber");
+
+const deleteBtn = document.getElementById("deleteOrderBtn");
+
+orderInput.readOnly = !can("editOrders");
+deleteBtn.style.display = can("deleteOrders") ? "block" : "none";
+    window.editingOrderNo = orderNo;
+    setTimeout(() => {
+        document.getElementById("editOrderNumber").focus();
+    }, 100);
+}
+function closeEditModal() {
+    document.getElementById("editOrderModal").classList.add("hidden");
+}
+async function deleteOrder() {
+
+    if (!requirePermission("deleteOrders")) return;
+
+    if (!(await confirmDialog("This order will be deleted permanently.", { title: "Delete order", okText: "Delete", danger: true }))) return;
+
+    await removeOrderRecords(window.editingOrderNo);
+
+    closeEditModal();
+}
+document.getElementById("deleteOrderBtn")
+    .addEventListener("click", deleteOrder);
+async function saveEditedOrder() {
+
+    const newOrderNo = document.getElementById("editOrderNumber").value.trim();
+    const comment = document.getElementById("editOrderComment").value.trim();
+
+    console.log({
+        editingOrderNo: window.editingOrderNo,
+        newOrderNo,
+        comment
+    });
+
+    if (!window.editingOrderNo) {
+        console.error("No order selected for editing");
+        return;
+    }
+
+    const paths = ["orders", "orders_new"];
+
+    let updated = false;
+
+    for (const path of paths) {
+
+        const snapshot = await get(ref(db, path));
+
+        if (!snapshot.exists()) {
+            continue;
+        }
+
+
+        for (const child of snapshot.val() ? Object.entries(snapshot.val()) : []) {
+
+            const childKey = child[0];
+            const data = child[1];
+
+
+            if (
+                String(data.orderNo || "").trim().toUpperCase() ===
+                String(window.editingOrderNo || "").trim().toUpperCase()
+            ) {
+
+
+                const newHistory = [
+                    ...(data.history || []),
+                    {
+                        action: "edited",
+                        date: new Date().toISOString(),
+                        by: localStorage.getItem("currentWarehouse") || "unknown",
+                        oldOrderNo: data.orderNo,
+                        newOrderNo: newOrderNo,
+                        oldComment: data.comment || "",
+                        newComment: comment
+                    }
+                ];
+
+
+                await update(
+                    ref(db, `${path}/${childKey}`),
+                    {
+                        orderNo: newOrderNo,
+                        comment: comment,
+                        history: newHistory
+                    }
+                );
+
+                updated = true;
+            }
+        }
+    }
+
+
+    if (!updated) {
+        console.error(
+            "ORDER NOT FOUND:",
+            window.editingOrderNo
+        );
+    } else {
+    }
+
+
+    closeEditModal();
+}
+function closeEditIfOutside(e) {
+
+    if (e.target.id === "editOrderModal") {
+        closeEditModal();
+    }
+
+}
+function cancelOrder() {
+
+    if (!confirm("Cancel this order ?")) return;
+
+    const paths = ["orders", "orders_new"];
+
+    paths.forEach(path => {
+
+        get(ref(db, path)).then(snapshot => {
+
+            snapshot.forEach(child => {
+
+                const data = child.val();
+
+                if (data.orderNo === window.editingOrderNo) {
+
+                    update(ref(db, `${path}/${child.key}`), {
+
+                        status: "canceled",
+
+                        history: [
+                            ...(data.history || []),
+                            {
+                                action: "canceled",
+                                date: new Date().toISOString(),
+                                by: localStorage.getItem("currentWarehouse")
+                            }
+                        ]
+
+                    });
+
+                }
+
+            });
+
+        });
+
+    });
+
+    closeEditModal();
+}
+/** Legacy status "in-packing" is never read (status is derived from warehouses), so no write is needed. */
+function markInPacking() { /* intentionally empty */ }
+function markWarehousePacking(orderNo, warehouseName) {
+
+    if (!can("receivePacking")) return;
+
+    const order = allOrders.find(o => o.orderNo === orderNo);
+
+    if (!order ||
+        order.status === "canceled" ||
+        order.status === "canceled_before_delivery") {
+        return;
+    }
+
+    openConfirmModal(
+        `Receive order <b>${escapeHtml(orderNo)}</b> in <b>${escapeHtml(warehouseName)}</b>?`,
+        async () => {
+
+            const target = normalizeWarehouse(warehouseName).base;
+            const now = new Date().toISOString();
+
+            await updateOrderRecords(
+                orderNo,
+                data => ({
+                    warehouses: (data.warehouses || []).map(w =>
+                        normalizeWarehouse(w.base).base === target
+                            ? { ...w, packed: true, packingTime: now }
+                            : w
+                    )
+                }),
+                { action: "packed", warehouse: warehouseName, by: "Packing Station" }
+            );
+        }
+    );
+}
+function openConfirmModal(message, onConfirm) {
+
+    const modal = document.getElementById("confirmModal");
+    const text = document.getElementById("confirmText");
+    const okBtn = document.getElementById("confirmOk");
+    const cancelBtn = document.getElementById("confirmCancel");
+
+    const btnText = document.getElementById("btnText");
+    const loader = document.getElementById("btnLoader");
+    const icon = document.getElementById("confirmIcon");
+    const sound = document.getElementById("successSound");
+
+    text.innerHTML = message;
+    modal.classList.remove("hidden");
+
+    function reset() {
+        modal.classList.add("hidden");
+        loader.classList.add("hidden");
+        btnText.style.display = "inline";
+        okBtn.classList.remove("loading");
+        icon.innerHTML = "📦";
+        icon.classList.remove("success");
+    }
+
+    cancelBtn.onclick = reset;
+
+    modal.onclick = (e) => {
+        if (e.target === modal) reset();
+    };
+
+    okBtn.onclick = async () => {
+
+        // start loading
+        loader.classList.remove("hidden");
+        btnText.style.display = "none";
+        okBtn.classList.add("loading");
+
+        // simulate or wait actual action
+        await onConfirm();
+
+        // success state
+        loader.classList.add("hidden");
+        icon.innerHTML = "✔";
+        icon.classList.add("success");
+
+        // sound.play().catch(() => { });
+
+        setTimeout(() => {
+            reset();
+        }, 1000);
+    };
+
+}
+function showPackingSelection(order) {
+
+    const modal = document.getElementById("orderDetails");
+
+    const html = `
+<h3>Select Warehouse for Packing</h3>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+
+${order.warehouses.map(w => {
+        return `
+<button onclick="markWarehousePacking(${JSON.stringify(order.orderNo)}, ${JSON.stringify(w.base)})"
+style="
+padding:10px 16px;
+background:#22c55e;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-weight:600;
+">
+${w.base.toUpperCase()}
+</button>
+`;
+    }).join("")}
+
+</div>
+`;
+
+    document.getElementById("orderList").innerHTML = html;
+
+    modal.classList.remove("hidden");
+}
+function openPackingOrder(order) {
+
+    if (order.warehouses.length === 1) {
+
+        markWarehousePacking(order.orderNo, order.warehouses[0].base);
+
+    }
+
+    else {
+
+        showPackingSelection(order);
+
+    }
+
+}
+
+function log(msg) {
+    const el = document.getElementById("debug") || (() => {
+        const d = document.createElement("div");
+        d.id = "debug";
+        d.style.position = "fixed";
+        d.style.bottom = "0";
+        d.style.width = "100%";
+        d.style.height = "150px";
+        d.style.background = "#000";
+        d.style.color = "#0f0";
+        d.style.overflow = "auto";
+        d.style.fontSize = "12px";
+        d.style.padding = "5px";
+        document.body.appendChild(d);
+        return d;
+    })();
+    el.innerHTML += msg + "<br>";
+}
+let receivingOrders = new Set();
+
+/** "Received" button of the packing station: the whole order arrived at packing. */
+async function receiveInPacking(orderNo) {
+
+    if (!can("receivePacking")) return;
+
+    const order = allOrders.find(o => o.orderNo === orderNo);
+
+    if (!order ||
+        order.status === "canceled" ||
+        order.status === "canceled_before_delivery") {
+        return;
+    }
+
+    if (receivingOrders.has(orderNo)) return;
+    receivingOrders.add(orderNo);
+
+    try {
+        await updateOrderRecords(
+            orderNo,
+            () => ({ status: "completed", packingReceivedTime: new Date().toISOString() }),
+            { action: "received_in_packing" }
+        );
+    } finally {
+        receivingOrders.delete(orderNo);
+    }
+}
+function toggleCommentsFilter() {
+
+    showOnlyComments = !showOnlyComments;
+
+    const btn = document.getElementById("commentsToggleBtn");
+
+    if (showOnlyComments) {
+        btn.style.background = "#22c55e";
+        btn.textContent = "Showing Comments Only";
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = "Show Comments Only";
+    }
+
+    renderRecentOrders(); // 🔥 إعادة رسم
+}
+function renderOrders() {
+
+    const container = document.getElementById("ordersTableBody");
+    container.innerHTML = "";
+
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align:center;padding:20px;color:#888">
+                    No Orders Yet
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    orders
+        .sort((a, b) => b.id - a.id)
+        .forEach(order => {
+
+            const statusColor =
+                order.status === "Pending" ? "#f39c12" :
+                    order.status === "Approved" ? "#2ecc71" :
+                        order.status === "Rejected" ? "#e74c3c" :
+                            "#3498db";
+
+            const row = `
+                <tr style="transition:.2s">
+                    <td>#${order.id}</td>
+                    <td>${order.warehouse}</td>
+                    <td>${order.item}</td>
+                    <td>${order.qty}</td>
+                    <td>
+                        <span style="
+                            background:${statusColor};
+                            color:white;
+                            padding:4px 10px;
+                            border-radius:20px;
+                            font-size:12px;
+                            font-weight:600">
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td>${new Date(order.date).toLocaleString()}</td>
+                </tr>
+            `;
+
+            container.innerHTML += row;
+        });
+}
+const currentWarehouse = localStorage.getItem("currentWarehouse");
+/** Removed behaviour: it rewrote every pending order to "in-packing" on each packing login, and that status is ignored anyway. */
+function autoMoveToPacking() { /* intentionally empty */ }
+
+function fillWarehouseDropdown() {
+    if (!can("filterByWarehouse")) return;
+
+    const dropdown = document.getElementById("warehouseDropdown");
+    if (!dropdown) return;
+
+    const set = new Set();
+
+    recentOrders.forEach(order => {
+        order.warehouses?.forEach(w => {
+            if (w.base) set.add(normalizeWarehouseName(w.base));
+        });
+    });
+
+    dropdown.innerHTML = `<option value="">All Warehouses</option>`;
+
+    [...set].sort().forEach(w => {
+        const opt = document.createElement("option");
+        opt.value = w;
+        opt.textContent = w;
+        dropdown.appendChild(opt);
+    });
+}
+document.getElementById("warehouseDropdown").addEventListener("change", function () {
+    selectedWarehouseFilter = this.value;
+    renderRecentOrders();
+});
+function toggleUnrepliedFilter() {
+
+    unrepliedOnly = !unrepliedOnly;
+
+    const btn = document.getElementById("unrepliedToggleBtn");
+
+    if (unrepliedOnly) {
+        btn.style.background = "#f59e0b";
+        btn.textContent = "Showing Unreplied Comments Only";
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = "Show Unreplied Comments Only";
+    }
+
+    renderRecentOrders();
+}
