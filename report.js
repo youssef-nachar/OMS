@@ -8,6 +8,8 @@ document.getElementById("dashboardHeader").style.display = "none";
 
 document.getElementById("newOrderTab")  
     ?.classList.add("hidden");  
+document.getElementById("advancedDashboardTab")
+      ?.classList.add("hidden");
 
 document.getElementById("readyTab")  
     ?.classList.add("hidden");  
